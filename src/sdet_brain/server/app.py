@@ -54,16 +54,34 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build a FastAPI app with the SDET Brain routes and FastMCP mount."""
     settings = settings or get_settings()
+
+    # Build FastMCP app first so we can chain its lifespan with ours.
+    # The state-getter resolves at call time because the FastAPI app
+    # is constructed below.
+    app_holder: dict[str, FastAPI] = {}
+    def _state_getter() -> object:
+        host = app_holder.get("app")
+        if host is None:
+            return None
+        return getattr(host.state, "app_state", None)
+
+    mcp = build_mcp(state_getter=_state_getter)  # type: ignore[arg-type]
+    mcp_app = mcp.http_app(path="/mcp", transport="streamable-http")
+
+    @asynccontextmanager
+    async def _combined_lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Run the FastMCP lifespan (starts the streamable HTTP session
+        # manager) inside our own so AppState init still happens.
+        async with mcp_app.lifespan(app), _lifespan(app):
+            yield
+
     app = FastAPI(
         title="SDET Brain",
         version="0.1.0",
         description="Persistent RAG for the SDET brand domain.",
-        lifespan=_lifespan,
+        lifespan=_combined_lifespan,
     )
-    # The FastMCP instance is mounted before the lifespan runs, so it
-    # cannot capture the AppState directly. Tools resolve state at call
-    # time through this getter.
-    mcp = build_mcp(state_getter=lambda: getattr(app.state, "app_state", None))
+    app_holder["app"] = app
 
     app.include_router(health_router)
     app.include_router(status_router)
@@ -72,8 +90,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Mount the FastMCP streamable HTTP transport so any client that
     # speaks MCP-over-HTTP can reach the same tools as the stdio/SSE
-    # entrypoints.
-    app.mount("/mcp", mcp.http_app(transport="streamable-http"))
+    # entrypoints. The inner app already routes `/mcp` itself, so we
+    # mount at the root and let it own the path.
+    app.mount("/", mcp_app)
 
     # Stash the FastMCP instance on the app so tests / future tooling
     # can introspect registered tools without re-building it.
