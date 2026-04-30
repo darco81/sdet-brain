@@ -71,6 +71,7 @@ def _default_source_config() -> SourceConfig:
                 "/Users/dariusz/dev/darco81/sdet-wcag-toolkit/docs/sprints",
                 "/Users/dariusz/dev/darco81/sdet-wcag-pro/docs/sprints",
             ],
+            "brief": ["/Users/dariusz/dev/darco81/portfolio-v2/brief"],
         }
     )
 

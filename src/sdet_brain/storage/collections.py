@@ -25,6 +25,7 @@ SourceType = Literal[
     "drafts",
     "articles",
     "sprint-reports",
+    "brief",
 ]
 
 PAYLOAD_INDEXES: dict[str, PayloadSchemaType] = {

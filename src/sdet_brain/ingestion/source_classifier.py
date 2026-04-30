@@ -35,6 +35,7 @@ class SourceConfig:
     drafts_dirs: tuple[Path, ...] = field(default_factory=tuple)
     articles_dirs: tuple[Path, ...] = field(default_factory=tuple)
     sprint_reports_dirs: tuple[Path, ...] = field(default_factory=tuple)
+    brief_dirs: tuple[Path, ...] = field(default_factory=tuple)
 
 
 def _is_under(path: Path, parents: Iterable[Path]) -> bool:
@@ -54,8 +55,8 @@ def classify_source(path: Path, config: SourceConfig) -> str:
     Resolution order:
     1. project-knowledge filename pattern under any project-knowledge
        directory wins outright.
-    2. Otherwise, exact directory containment is checked (sprint
-       reports, articles, drafts).
+    2. Otherwise, exact directory containment is checked
+       (sprint-reports, brief, articles, drafts).
     3. Default to ``"unknown"``.
     """
     if PROJECT_KNOWLEDGE_FILENAME_PATTERN.match(path.name) and _is_under(
@@ -64,6 +65,8 @@ def classify_source(path: Path, config: SourceConfig) -> str:
         return "project-knowledge"
     if _is_under(path, config.sprint_reports_dirs):
         return "sprint-reports"
+    if _is_under(path, config.brief_dirs):
+        return "brief"
     if _is_under(path, config.articles_dirs):
         return "articles"
     if _is_under(path, config.drafts_dirs):
@@ -82,4 +85,5 @@ def default_source_config_from_mapping(mapping: Mapping[str, list[str]]) -> Sour
         drafts_dirs=tuple(Path(p) for p in mapping.get("drafts", [])),
         articles_dirs=tuple(Path(p) for p in mapping.get("articles", [])),
         sprint_reports_dirs=tuple(Path(p) for p in mapping.get("sprint-reports", [])),
+        brief_dirs=tuple(Path(p) for p in mapping.get("brief", [])),
     )
