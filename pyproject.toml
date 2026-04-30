@@ -36,6 +36,7 @@ sdet-brain-mcp-stdio = "sdet_brain.server.mcp_stdio:main"
 sdet-brain-mcp-sse = "sdet_brain.server.mcp_sse:main"
 sdet-brain-watcher = "sdet_brain.cli.watcher_cli:main"
 sdet-brain-cli = "sdet_brain.cli.ingest_cli:main"
+sdet-brain-qdrant = "sdet_brain.cli.qdrant_cli:main"
 
 [build-system]
 requires = ["hatchling"]

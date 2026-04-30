@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Qdrant `docker-compose` service with `/readyz` healthcheck, persistent
+  bind mount, and dedicated `sdet-brain-network` bridge.
+- `QdrantStorage` facade in `sdet_brain.storage.qdrant_client` wrapping
+  ensure-collection, payload-index management, upsert, dense search via
+  `query_points`, filter-based deletion, count, and status snapshots.
+- `sdet_brain.storage.collections` exposing `COLLECTION_NAME`,
+  `ChunkPayload` `TypedDict`, payload-index map, and idempotent
+  `init_collections`.
+- `sdet-brain-qdrant` CLI (`init` / `status` / `ping`) wired as a console
+  script and module-runnable via `python -m sdet_brain.cli.qdrant_cli`.
+- Storage integration tests covering idempotent collection creation,
+  upsert + search round-trip, filter-based deletion, payload-index
+  registration, and parametrised batch sizes.
+
 ## [0.1.0] - 2026-04-30 - Initial bootstrap
 
 ### Added
