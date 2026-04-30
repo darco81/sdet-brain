@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit + smoke tests for the embedding stack: protocol contract, factory
   fallback against in-process fakes, Gemini transient-error retry path,
   and MLX lazy-load assertion (skipped on non-Apple-Silicon).
+- Markdown ingestion stack in `sdet_brain.ingestion`: `Chunk` and
+  `ParsedDocument` dataclasses, YAML frontmatter parser (graceful fall
+  back on malformed YAML), block-aware semantic chunker (heading
+  hierarchy, atomic code fences and Markdown tables, configurable
+  target size and overlap), and `parse_markdown(path)` orchestrator
+  with deterministic SHA-256 content hashing.
+- Test fixtures (`simple.md`, `voice-sample.md`, `complex.md`) plus 18
+  ingestion tests covering chunker behaviour, frontmatter edge cases,
+  and end-to-end document parsing.
 
 ## [0.1.0] - 2026-04-30 - Initial bootstrap
 
