@@ -1,0 +1,32 @@
+# SDET Brain - local development stack.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# Services:
+#   - qdrant: vector store (port 6333 HTTP, 6334 gRPC)
+#   - sdet-brain: REST + MCP HTTP server (port 8080, placeholder until T1-06)
+#
+# The sdet-brain service is intentionally commented out until the server image
+# exists. T1-02 wires up Qdrant; T1-06 enables the application service.
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: sdet-brain-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      QDRANT__LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  qdrant_storage:
+    name: sdet_brain_qdrant_storage

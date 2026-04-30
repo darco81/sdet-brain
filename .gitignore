@@ -1,0 +1,52 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+build/
+dist/
+wheels/
+
+# --- Virtualenvs / package managers ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Tooling caches ---
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# --- Project-specific ---
+.env
+.env.*
+!.env.example
+qdrant_storage/
+docker/qdrant_storage/
+data/
+logs/
+*.log
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Optional MLX / model caches ---
+.cache/
+models/
+
+# --- Local-only Claude Code session memory ---
+.remember/
