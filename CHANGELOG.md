@@ -74,6 +74,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   healthy/degraded/unavailable health responses, OpenAPI exposure,
   and lifespan resilience to a missing Qdrant.
 - README "Running the server" section with Claude Desktop config.
+- Four core MCP tools wired through `build_mcp(state_getter)` and a
+  shared `build_default_state` helper:
+  - `search(query, limit, source_type, min_score)` - Markdown-
+    formatted dense-vector hits with score / heading / text.
+  - `ingest_path(path, force)` - thin wrapper over the T1-05
+    pipeline returning a `IngestStats` summary.
+  - `list_sources(source_type)` - groups indexed chunks per source
+    path with chunk count and last ingestion timestamp.
+  - `get_chunk_neighbors(source_path, chunk_index, window)` -
+    returns the surrounding chunks clamped to file bounds for
+    context expansion.
+- 11 tool-level tests against a live Qdrant + deterministic fake
+  embedder (filter behaviour, empty corpus, edge cases at chunk 0
+  and at total - 1).
+- README "MCP tools" reference table.
 
 ## [0.1.0] - 2026-04-30 - Initial bootstrap
 

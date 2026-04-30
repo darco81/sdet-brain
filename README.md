@@ -160,9 +160,22 @@ Claude Desktop config snippet (macOS path is
 }
 ```
 
-The current build (T1-06) ships a placeholder `ping` MCP tool so each
-transport can be smoke-tested. The real tool surface (`search`,
-`ingest`, `list_sources`, `get_chunk_neighbors`) lands in T1-07.
+## MCP tools
+
+The MCP server exposes five tools - one liveness probe and the four
+core capabilities.
+
+| Tool | Purpose |
+| --- | --- |
+| `ping` | Cheap liveness probe; returns `{status, service}`. |
+| `search(query, limit=5, source_type?, min_score=0.0)` | Semantic search with an optional source-type filter and a minimum cosine-similarity threshold. Returns Markdown-formatted hits with score, heading path, and chunk text. |
+| `ingest_path(path, force=false)` | Run the ingestion pipeline against a file or directory. Honours the content-hash cache unless `force` is set. Returns the same `IngestStats` summary as the CLI. |
+| `list_sources(source_type?)` | Group every indexed chunk by source path. Filter by source type to scope the listing. |
+| `get_chunk_neighbors(source_path, chunk_index, window=2)` | Pull the chunks surrounding a hit (clamped to file bounds). Useful when a search result needs more context. |
+
+Tool descriptions visible to Claude include "use when" / "don't use
+when" hints to keep call patterns predictable. Inspect with
+`npx @modelcontextprotocol/inspector uv run sdet-brain-mcp-stdio`.
 
 ## How to ingest your corpus
 
