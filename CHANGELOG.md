@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- docs: clarify Claude Desktop requires `mcp-remote` stdio bridge
+  (HTTP transport works only in Claude Code CLI).
+
 ## [0.1.0] - 2026-04-30 - Tier 1 MVP shipped
 
 First usable build. Persistent RAG for the SDET brand domain - shared
