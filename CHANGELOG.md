@@ -7,122 +7,144 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-04-30 - Tier 1 MVP shipped
+
+First usable build. Persistent RAG for the SDET brand domain - shared
+context across Claude Desktop, Claude Code, OpenCode, and any other
+MCP-aware client over a single backend.
+
 ### Added
-- Qdrant `docker-compose` service with `/readyz` healthcheck, persistent
-  bind mount, and dedicated `sdet-brain-network` bridge.
-- `QdrantStorage` facade in `sdet_brain.storage.qdrant_client` wrapping
-  ensure-collection, payload-index management, upsert, dense search via
-  `query_points`, filter-based deletion, count, and status snapshots.
+
+#### Project bootstrap (T1-01 / SDE-18)
+- Python 3.12 project skeleton managed by `uv`.
+- `pyproject.toml` declaring runtime dependencies (FastAPI,
+  FastMCP 3, `qdrant-client`, `pydantic-settings`, `watchdog`,
+  `python-frontmatter`, `httpx`, `uvicorn`, `google-genai`,
+  `tenacity`, `tqdm`, `mlx-embeddings` on Apple Silicon) and dev
+  tooling (`pytest`, `mypy`, `ruff`, `types-pyyaml`,
+  `types-tqdm`).
+- `sdet_brain.config.Settings` covering Qdrant, embedding
+  providers, server ports, ingestion knobs, and watcher
+  parameters.
+- Multi-stage `docker/Dockerfile` and Compose scaffolding.
+- `README.md` with Mermaid architecture diagram and quick start.
+- `.env.example` listing every supported environment variable.
+- Smoke tests covering the package import + default settings.
+
+#### Storage layer (T1-02 / SDE-19)
+- Qdrant `docker-compose` service with `/readyz` healthcheck,
+  bind-mounted persistent storage, and a dedicated
+  `sdet-brain-network` bridge.
+- `QdrantStorage` facade wrapping ensure-collection, payload-index
+  management, upsert, dense search via `query_points`, filter-based
+  deletion, count, and status snapshots.
 - `sdet_brain.storage.collections` exposing `COLLECTION_NAME`,
   `ChunkPayload` `TypedDict`, payload-index map, and idempotent
-  `init_collections`.
-- `sdet-brain-qdrant` CLI (`init` / `status` / `ping`) wired as a console
-  script and module-runnable via `python -m sdet_brain.cli.qdrant_cli`.
-- Storage integration tests covering idempotent collection creation,
-  upsert + search round-trip, filter-based deletion, payload-index
-  registration, and parametrised batch sizes.
-- `IEmbedder` `Protocol` plus dual-path embedding providers:
-  `MLXEmbedder` (lazy `mlx-embeddings` load, batch 32, `text_embeds`
-  output) and `GeminiEmbedder` (Google `google-genai` SDK with
-  exponential-backoff retries via `tenacity`).
+  `init_collections(name=COLLECTION_NAME)`.
+- `sdet-brain-qdrant` CLI (`init` / `status` / `ping`).
+- 7 storage tests against a live Qdrant container.
+
+#### Embeddings layer (T1-03 / SDE-20)
+- `IEmbedder` `Protocol` plus dual-path providers:
+  `MLXEmbedder` (lazy `mlx-embeddings` load, batch 32, vectors from
+  `BaseModelOutput.text_embeds`) and `GeminiEmbedder` (Google
+  `google-genai` SDK with exponential-backoff retries via
+  `tenacity.Retrying`).
 - `sdet_brain.embeddings.factory.get_embedder` returning an
-  `EmbedderSelection` that auto-falls-back when the primary provider
-  fails its health check.
-- `sdet-brain-embed` CLI (`encode` / `health`) with provider chain
-  reporting.
-- Unit + smoke tests for the embedding stack: protocol contract, factory
-  fallback against in-process fakes, Gemini transient-error retry path,
-  and MLX lazy-load assertion (skipped on non-Apple-Silicon).
-- Markdown ingestion stack in `sdet_brain.ingestion`: `Chunk` and
-  `ParsedDocument` dataclasses, YAML frontmatter parser (graceful fall
-  back on malformed YAML), block-aware semantic chunker (heading
-  hierarchy, atomic code fences and Markdown tables, configurable
-  target size and overlap), and `parse_markdown(path)` orchestrator
-  with deterministic SHA-256 content hashing.
-- Test fixtures (`simple.md`, `voice-sample.md`, `complex.md`) plus 18
-  ingestion tests covering chunker behaviour, frontmatter edge cases,
-  and end-to-end document parsing.
-- End-to-end ingestion pipeline: `sdet_brain.ingestion.pipeline`
-  walks Markdown sources, batches embeddings (default 32), and upserts
-  deterministic UUID5 points into Qdrant. Re-ingestion short-circuits
-  on `content_hash` matches; modifications trigger a delete-and-replace
-  pass.
-- Path-driven source classifier
-  (`sdet_brain.ingestion.source_classifier`) tagging chunks as
+  `EmbedderSelection` that auto-falls-back when the primary
+  provider fails its health check.
+- `sdet-brain-embed` CLI (`encode` / `health`).
+- 15 embedding tests (protocol contract, factory fallback against
+  in-process fakes, Gemini transient-error retries, MLX lazy-load).
+
+#### Ingestion pipeline (T1-04 + T1-05 / SDE-21 + SDE-22)
+- Markdown ingestion stack in `sdet_brain.ingestion`:
+  `Chunk` and `ParsedDocument` dataclasses, YAML frontmatter parser
+  (graceful fallback on malformed YAML), block-aware semantic
+  chunker (heading hierarchy, atomic code fences and Markdown
+  tables, configurable target size and overlap), and
+  `parse_markdown(path)` orchestrator with deterministic SHA-256
+  content hashing.
+- Test fixtures (`simple.md`, `voice-sample.md`, `complex.md`)
+  plus 18 ingestion tests.
+- End-to-end pipeline (`ingest_path`) walking sources, batching
+  embeddings (default 32), and upserting deterministic UUID5 points
+  into Qdrant. Re-ingestion short-circuits on `content_hash`
+  matches; modifications trigger a delete-and-replace pass.
+- Path-driven source classifier tagging chunks as
   `project-knowledge`, `drafts`, `articles`, `sprint-reports`, or
   `unknown`.
-- `sdet-brain-ingest` CLI with progress bar (`tqdm`), `--force`
-  bypass, and an `IngestStats` summary.
-- 7 pipeline tests against a live Qdrant container with a
-  deterministic 16-dim fake embedder, covering single/directory
-  ingest, cache hits, modify-and-replace, `--force`, and source-type
-  tagging.
-- README "How to ingest your corpus" section.
-- Chunk text is now persisted on the Qdrant payload (`payload.text`)
-  so search results carry the original content alongside metadata.
-- FastAPI application factory (`sdet_brain.server.app:create_app`)
-  with a lifespan context that lazily wires Qdrant + the embedder and
-  reports degraded states through `/health`. Routes:
-  `/health`, `/status`, `/search`, `/ingest`. OpenAPI spec at
-  `/openapi.json`, Swagger UI at `/docs`.
+- `sdet-brain-cli` CLI (`--force`, `--exclude DIR`, `tqdm`
+  progress bar) returning an `IngestStats` summary.
+- 7 pipeline tests against a live Qdrant + deterministic fake
+  embedder.
+
+#### Server (T1-06 + T1-07 / SDE-23 + SDE-24)
+- FastAPI application factory with a lifespan context that wires
+  Qdrant + the embedder and reports degraded states through
+  `/health`. Routes: `/health`, `/status`, `/search`, `/ingest`.
+  OpenAPI at `/openapi.json`, Swagger UI at `/docs`.
 - FastMCP 3 wrapper exposing the server as MCP tools across three
   transports - stdio (`sdet-brain-mcp-stdio`), SSE
-  (`sdet-brain-mcp-sse`), and streamable HTTP mounted on the FastAPI
-  app under `/mcp`. T1-06 ships a placeholder `ping` tool; T1-07 adds
-  the real surface.
-- Server tests using `fastapi.testclient.TestClient` covering
-  healthy/degraded/unavailable health responses, OpenAPI exposure,
-  and lifespan resilience to a missing Qdrant.
-- README "Running the server" section with Claude Desktop config.
-- Four core MCP tools wired through `build_mcp(state_getter)` and a
-  shared `build_default_state` helper:
+  (`sdet-brain-mcp-sse`), and streamable HTTP mounted on the
+  FastAPI app under `/mcp`.
+- Four core MCP tools (plus a `ping` smoke probe), wired through
+  `build_mcp(state_getter)` and a shared `build_default_state`
+  helper:
   - `search(query, limit, source_type, min_score)` - Markdown-
     formatted dense-vector hits with score / heading / text.
-  - `ingest_path(path, force)` - thin wrapper over the T1-05
-    pipeline returning a `IngestStats` summary.
-  - `list_sources(source_type)` - groups indexed chunks per source
-    path with chunk count and last ingestion timestamp.
+  - `ingest_path(path, force)` - thin wrapper over the pipeline.
+  - `list_sources(source_type)` - groups indexed chunks per
+    source path with chunk count and last ingestion timestamp.
   - `get_chunk_neighbors(source_path, chunk_index, window)` -
-    returns the surrounding chunks clamped to file bounds for
-    context expansion.
-- 11 tool-level tests against a live Qdrant + deterministic fake
-  embedder (filter behaviour, empty corpus, edge cases at chunk 0
-  and at total - 1).
-- README "MCP tools" reference table.
-- File watcher daemon (`sdet_brain.ingestion.watcher.BrainWatcher`)
-  with thread-safe debounced re-ingest queue, delete propagation via
-  `delete_by_filter`, hidden / vendored / non-Markdown filtering,
-  and a graceful drain on shutdown.
-- `sdet-brain-watcher` CLI entrypoint reading watch paths from
-  `WATCH_PATHS`, with `SIGINT` / `SIGTERM` handling.
-- Optional `watcher` profile in `docker/docker-compose.yml` so the
-  daemon can run alongside Qdrant via `docker compose --profile
-  watcher up`.
-- Watcher tests: path filtering (Markdown / hidden / `node_modules`),
-  debounce collapse, delete handling, directory-event suppression,
-  and a live observer round-trip against the test Qdrant container.
-- README "Live sync mode" section.
+    surrounding chunks clamped to file bounds.
+- Chunk text persisted on the Qdrant payload so search results
+  carry the original content alongside metadata.
+- 19 server tests (8 health + 11 tool-level) using
+  `fastapi.testclient.TestClient`.
 
-## [0.1.0] - 2026-04-30 - Initial bootstrap
+#### Watcher (T1-08 / SDE-25)
+- `BrainWatcher` (`watchdog.events.FileSystemEventHandler`
+  subclass) with thread-safe debounced re-ingest queue, delete
+  propagation via `delete_by_filter`, hidden / vendored /
+  non-Markdown filtering, and a graceful drain on shutdown.
+- `sdet-brain-watcher` CLI reading paths from `WATCH_PATHS`, with
+  `SIGINT` / `SIGTERM` handling.
+- Optional `watcher` profile in `docker/docker-compose.yml`.
+- 9 watcher tests covering filter logic, debounce collapse, delete
+  handling, directory-event suppression, and a live observer
+  smoke.
 
-### Added
-- Python 3.12 project skeleton managed by `uv`.
-- `pyproject.toml` declaring core runtime dependencies (FastAPI, FastMCP 3.0+,
-  qdrant-client, pydantic-settings, watchdog, python-frontmatter, httpx) and
-  dev tooling (pytest, mypy, ruff).
-- `src/sdet_brain/config.py` with `pydantic-settings` `Settings` covering
-  Qdrant, embedding providers, server ports, and ingestion knobs.
-- Package layout with placeholder modules for ingestion, embeddings, storage,
-  server, and CLI layers.
-- Docker scaffolding: `docker/docker-compose.yml` running Qdrant (with the
-  `sdet-brain` service stubbed for later phases) and a multi-stage
-  `docker/Dockerfile`.
-- `README.md` with project overview, Mermaid architecture diagram, and quick
-  start instructions.
-- `.env.example` documenting every environment variable consumed by the app.
-- Smoke test ensuring the package imports and default settings load.
+#### Initial corpus + Tier 1 finalisation (T1-09 + T1-10 / SDE-26 + SDE-27)
+- Ingested 76 files / 1486 chunks across four source types:
+  `drafts` (1131), `articles` (137), `project-knowledge` (112),
+  `sprint-reports` (106). Snapshot at
+  `docs/sprints/v0.1.0-initial-ingest-snapshot.md`.
+- Verified 5 sanity queries return relevant top-1 hits (scores
+  0.59-0.78).
+- Claude Desktop `mcpServers` entry wired (config backed up
+  pre-change).
+- README sections: Embeddings, Running the server, MCP tools,
+  How to ingest your corpus, Live sync mode.
+- Tier 1 sprint report at
+  `docs/sprints/v0.1.0-tier-1-sprint-report.md`.
 
-### Notes
-- This release ships scaffolding only. Qdrant runtime config (T1-02),
-  embeddings (T1-03), and the markdown parser (T1-04) follow as separate
-  Linear tasks.
+### Quality gates at release
+
+- `uv run ruff check src tests` - 0 issues across 42 source files
+  + tests.
+- `uv run mypy --strict src` - 0 issues across 42 source files.
+- `uv run pytest -q` - **77 passed**.
+
+### Known limitations
+
+- Single tenant (Dariusz only). Multi-tenant deferred to a future
+  decision after the public-facing brand work lands.
+- No hybrid search (dense + BM25); no reranking. Both land in
+  Tier 2 (T2-03 / T2-04).
+- No domain-specific MCP tools beyond the generic four. Tier 2
+  (T2-02) adds search_voice_samples / search_decisions etc.
+- Cosmetic: the Qdrant compose healthcheck uses bash `/dev/tcp/`
+  which the Debian default `sh` lacks - container reports
+  "(unhealthy)" even when responding correctly. Tracked as a Tier
+  1 follow-up.
