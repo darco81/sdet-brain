@@ -147,14 +147,52 @@ uv run sdet-brain-mcp-stdio
 uv run sdet-brain-mcp-sse
 ```
 
-Claude Desktop config snippet (macOS path is
-`~/Library/Application Support/Claude/claude_desktop_config.json`):
+### Claude Desktop integration
+
+Claude Desktop **does not natively support** the HTTP transport in
+`mcpServers`. You need a stdio bridge - the `mcp-remote` npm package
+forwards stdio calls to the streamable-HTTP server running on
+`localhost:8080`.
+
+**Working config** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "sdet-brain": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:8080/mcp"]
+    }
+  }
+}
+```
+
+After saving, **Cmd+Q** Claude Desktop (full quit, not just closing
+the window), then relaunch and verify `sdet-brain` shows up in the
+MCP tools list.
+
+If you'd rather skip the bridge entirely, point Claude Desktop straight
+at the stdio entrypoint installed by `uv sync`:
 
 ```json
 {
   "mcpServers": {
     "sdet-brain": {
       "command": "/Users/<you>/dev/darco81/sdet-brain/.venv/bin/sdet-brain-mcp-stdio"
+    }
+  }
+}
+```
+
+**Claude Code (CLI) uses a different format** - native HTTP transport
+works directly there:
+
+```json
+{
+  "mcpServers": {
+    "sdet-brain": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
     }
   }
 }
