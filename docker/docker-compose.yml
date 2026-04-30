@@ -32,6 +32,31 @@ services:
     networks:
       - sdet-brain-network
 
+  # Optional opt-in service: `docker compose --profile watcher up -d`.
+  # Edit WATCH_PATHS + the bind mount below before enabling so the
+  # container can see the actual Markdown sources on the host.
+  sdet-brain-watcher:
+    profiles: ["watcher"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: sdet-brain-watcher
+    restart: unless-stopped
+    depends_on:
+      qdrant:
+        condition: service_started
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      WATCH_PATHS: /corpus
+      LOG_LEVEL: INFO
+    volumes:
+      # Replace the default with whichever tree holds your corpus
+      # before opting into the profile.
+      - ${SDET_BRAIN_CORPUS_HOST:-../../sdet-brand-drafts}:/corpus:ro
+    command: ["sdet-brain-watcher"]
+    networks:
+      - sdet-brain-network
+
 networks:
   sdet-brain-network:
     name: sdet-brain-network

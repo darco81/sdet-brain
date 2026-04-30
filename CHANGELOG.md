@@ -89,6 +89,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   embedder (filter behaviour, empty corpus, edge cases at chunk 0
   and at total - 1).
 - README "MCP tools" reference table.
+- File watcher daemon (`sdet_brain.ingestion.watcher.BrainWatcher`)
+  with thread-safe debounced re-ingest queue, delete propagation via
+  `delete_by_filter`, hidden / vendored / non-Markdown filtering,
+  and a graceful drain on shutdown.
+- `sdet-brain-watcher` CLI entrypoint reading watch paths from
+  `WATCH_PATHS`, with `SIGINT` / `SIGTERM` handling.
+- Optional `watcher` profile in `docker/docker-compose.yml` so the
+  daemon can run alongside Qdrant via `docker compose --profile
+  watcher up`.
+- Watcher tests: path filtering (Markdown / hidden / `node_modules`),
+  debounce collapse, delete handling, directory-event suppression,
+  and a live observer round-trip against the test Qdrant container.
+- README "Live sync mode" section.
 
 ## [0.1.0] - 2026-04-30 - Initial bootstrap
 

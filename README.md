@@ -206,6 +206,26 @@ articles, sprint-reports, or project-knowledge directories pick up the
 right `source_type` payload automatically. Anything outside lands as
 `unknown`.
 
+## Live sync mode (file watcher)
+
+Run the watcher daemon to keep the brain in step with on-disk edits.
+A 300 ms debounce window collapses VS Code's burst of save events into
+a single re-ingest; deletes are propagated as `delete_by_filter`
+calls so removed files vanish from the index.
+
+```bash
+# Foreground - tail the logs to see "Re-ingested ... (N chunks ...)".
+WATCH_PATHS=/Users/you/notes,/Users/you/drafts uv run sdet-brain-watcher
+
+# Or: run the watcher container alongside Qdrant.
+SDET_BRAIN_CORPUS_HOST=/Users/you/notes \
+  docker compose -f docker/docker-compose.yml --profile watcher up -d
+```
+
+`SIGINT` / `SIGTERM` triggers a graceful shutdown that drains any
+pending debounced events. Hidden files, `node_modules`, and anything
+that isn't `.md` are filtered automatically.
+
 ## Project status
 
 This repo is at the **bootstrap** milestone (`v0.1.0`). The skeleton, tooling,
