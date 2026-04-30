@@ -18,6 +18,9 @@ dependencies = [
     "python-frontmatter>=1.1.0",
     "httpx>=0.27.0",
     "uvicorn[standard]>=0.32.0",
+    "google-genai>=0.8.0",
+    "tenacity>=9.0.0",
+    "mlx-embeddings>=0.0.3 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +40,7 @@ sdet-brain-mcp-sse = "sdet_brain.server.mcp_sse:main"
 sdet-brain-watcher = "sdet_brain.cli.watcher_cli:main"
 sdet-brain-cli = "sdet_brain.cli.ingest_cli:main"
 sdet-brain-qdrant = "sdet_brain.cli.qdrant_cli:main"
+sdet-brain-embed = "sdet_brain.cli.embed_cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -67,7 +71,7 @@ strict_equality = true
 extra_checks = true
 
 [[tool.mypy.overrides]]
-module = ["frontmatter.*", "watchdog.*"]
+module = ["frontmatter.*", "watchdog.*", "mlx.*", "mlx_embeddings.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

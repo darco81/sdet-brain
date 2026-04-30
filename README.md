@@ -105,6 +105,31 @@ Until the server task lands, use the smoke test to verify the install:
 uv run pytest -q
 ```
 
+## Embeddings
+
+Two interchangeable providers expose the same `IEmbedder` contract
+(`vector_size`, `model_name`, `embed`, `health_check`):
+
+| Provider | When to use | Vector size | Notes |
+| --- | --- | --- | --- |
+| **MLX** (default) | Apple Silicon dev box | 1024 | Lazy-loads `Qwen/Qwen3-Embedding-0.6B` on first call. |
+| **Gemini** | Cloud / VPS / laptop offline | 768 | Uses `text-embedding-004` via the `google-genai` SDK with `tenacity` retries. Requires `GEMINI_API_KEY`. |
+
+Switch providers via `EMBEDDING_PROVIDER=mlx|gemini` in `.env`. The
+factory runs a `health_check()` and falls back to the alternate provider
+if the primary is unavailable. Mismatched vector sizes between providers
+mean swapping the active provider implies re-creating the Qdrant
+collection - acceptable as a one-time migration cost for a single-user
+deploy.
+
+```bash
+# Encode a probe and print a vector preview.
+uv run sdet-brain-embed encode "Hello SDET Brain"
+
+# Inspect which provider answered, including any fallback chain.
+uv run sdet-brain-embed health
+```
+
 ## Project status
 
 This repo is at the **bootstrap** milestone (`v0.1.0`). The skeleton, tooling,

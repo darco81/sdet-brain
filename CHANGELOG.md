@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Storage integration tests covering idempotent collection creation,
   upsert + search round-trip, filter-based deletion, payload-index
   registration, and parametrised batch sizes.
+- `IEmbedder` `Protocol` plus dual-path embedding providers:
+  `MLXEmbedder` (lazy `mlx-embeddings` load, batch 32, `text_embeds`
+  output) and `GeminiEmbedder` (Google `google-genai` SDK with
+  exponential-backoff retries via `tenacity`).
+- `sdet_brain.embeddings.factory.get_embedder` returning an
+  `EmbedderSelection` that auto-falls-back when the primary provider
+  fails its health check.
+- `sdet-brain-embed` CLI (`encode` / `health`) with provider chain
+  reporting.
+- Unit + smoke tests for the embedding stack: protocol contract, factory
+  fallback against in-process fakes, Gemini transient-error retry path,
+  and MLX lazy-load assertion (skipped on non-Apple-Silicon).
 
 ## [0.1.0] - 2026-04-30 - Initial bootstrap
 
