@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Final
 from qdrant_client.models import (
     FieldCondition,
     Filter,
+    MatchAny,
     MatchValue,
     PointStruct,
 )
@@ -117,6 +118,55 @@ def _existing_hash(
     return value if isinstance(value, str) else None
 
 
+def _load_existing_hashes(
+    storage: QdrantStorage, collection: str, source_paths: list[str]
+) -> dict[str, str]:
+    """Return ``{source_path: content_hash}`` for every path with chunks.
+
+    Single Qdrant scroll using ``MatchAny`` on the union of paths -
+    O(1) round-trips instead of one per file. The page size is
+    ``len(paths) * 2`` so we read at least one chunk per source plus
+    a buffer; we do NOT need every chunk because all chunks of a file
+    share the same `content_hash`.
+    """
+    if not source_paths:
+        return {}
+    page_size = max(64, min(len(source_paths) * 2, 1024))
+    seen: dict[str, str] = {}
+    offset: object = None
+    while True:
+        page, offset = storage.client.scroll(
+            collection_name=collection,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="source_path",
+                        match=MatchAny(any=source_paths),
+                    )
+                ]
+            ),
+            limit=page_size,
+            offset=offset,  # type: ignore[arg-type]
+            with_payload=True,
+            with_vectors=False,
+        )
+        for point in page:
+            payload = point.payload or {}
+            path = payload.get("source_path")
+            content_hash = payload.get("content_hash")
+            if (
+                isinstance(path, str)
+                and isinstance(content_hash, str)
+                and path not in seen
+            ):
+                seen[path] = content_hash
+        # Early exit once we have a hash for every path we asked about.
+        if len(seen) == len(source_paths):
+            return seen
+        if offset is None:
+            return seen
+
+
 def _delete_existing_chunks(
     storage: QdrantStorage, collection: str, source_path: str
 ) -> None:
@@ -172,12 +222,17 @@ def _ingest_document(
     *,
     force_reindex: bool,
     stats: IngestStats,
+    cached_hash: str | None = None,
+    cached_hash_known: bool = False,
 ) -> None:
     if not document.chunks:
         stats.files_skipped += 1
         return
 
-    existing = _existing_hash(storage, collection, document.source_path)
+    if cached_hash_known:
+        existing = cached_hash
+    else:
+        existing = _existing_hash(storage, collection, document.source_path)
     if not force_reindex and existing == document.content_hash:
         stats.files_skipped += 1
         return
@@ -248,11 +303,22 @@ def ingest_path(
     files = list(_iter_markdown_files(path, exclude_dirs=exclude_dirs))
     iterator: Iterator[Path] = progress if progress is not None else iter(files)
 
+    # Single batched cache-check: load every existing content_hash for
+    # the files we're about to walk in one Qdrant scroll. O(1)
+    # round-trips instead of O(N). For single-file ingests we skip the
+    # batch and let the per-file fallback handle it.
+    cached_hashes: dict[str, str] = {}
+    if len(files) > 1:
+        cached_hashes = _load_existing_hashes(
+            storage, collection, [str(f) for f in files]
+        )
+
     stats = IngestStats()
     for file_path in iterator:
         try:
             document = parse_markdown(file_path)
             source_type = classify_source(file_path, config)
+            cached = cached_hashes.get(str(file_path))
             _ingest_document(
                 document,
                 storage,
@@ -262,6 +328,8 @@ def ingest_path(
                 batch_size,
                 force_reindex=force_reindex,
                 stats=stats,
+                cached_hash=cached,
+                cached_hash_known=len(files) > 1,
             )
         except Exception as exc:
             # Per-file failures must not abort the whole walk - record
