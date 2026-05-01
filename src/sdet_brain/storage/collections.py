@@ -42,6 +42,9 @@ PAYLOAD_INDEXES: dict[str, PayloadSchemaType] = {
     "tags": PayloadSchemaType.KEYWORD,
     "series": PayloadSchemaType.KEYWORD,
     "language": PayloadSchemaType.KEYWORD,
+    # Datetime indexes powering the `since` filter on `search_decisions`.
+    "fm_created_at": PayloadSchemaType.DATETIME,
+    "fm_updated_at": PayloadSchemaType.DATETIME,
 }
 
 

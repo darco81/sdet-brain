@@ -15,6 +15,21 @@ from collections.abc import Callable
 from fastmcp import FastMCP
 
 from sdet_brain.server.dependencies import AppState
+from sdet_brain.server.tools.domain import (
+    list_articles_by_status as list_articles_by_status_tool,
+)
+from sdet_brain.server.tools.domain import (
+    search_decisions as search_decisions_tool,
+)
+from sdet_brain.server.tools.domain import (
+    search_smaczki as search_smaczki_tool,
+)
+from sdet_brain.server.tools.domain import (
+    search_sprint_reports as search_sprint_reports_tool,
+)
+from sdet_brain.server.tools.domain import (
+    search_voice_samples as search_voice_samples_tool,
+)
 from sdet_brain.server.tools.get_chunk_neighbors import (
     get_chunk_neighbors as get_chunk_neighbors_tool,
 )
@@ -115,6 +130,87 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
             source_path=source_path,
             chunk_index=chunk_index,
             window=window,
+        )
+
+    @mcp.tool
+    def search_voice_samples(topic: str, limit: int = 5) -> str:
+        """Find Dariusz's authentic voice samples for a given topic.
+
+        Use this when the user wants quotable phrasing in his style:
+        openers, closers, transitions, structural variety, hooks. The
+        tool filters to chunks tagged ``category=voice-sample`` so the
+        result is voice material only - never strategy docs or
+        sprint reports. Prefer this over `search` whenever the user
+        asks "how does Dariusz say X" or "find me a self-deprecating
+        opener".
+        """
+        state = _require_state(state_getter())
+        return search_voice_samples_tool(state, topic=topic, limit=limit)
+
+    @mcp.tool
+    def search_smaczki(topic: str, limit: int = 5) -> str:
+        """Find vivid sentence-level "smaczki" (zingers) about a topic.
+
+        "Smaczki" are the bite-sized, quotable beats that land in
+        articles - one-liners, sharp metaphors, recurring motifs. Use
+        this when the user wants colour for an article: ``"smaczki
+        about flaky tests"`` or ``"give me the smaczki about my
+        keyboard-trap detector"``. Filters to ``category=smaczki``
+        only - not the case study, not the raw notes.
+        """
+        state = _require_state(state_getter())
+        return search_smaczki_tool(state, topic=topic, limit=limit)
+
+    @mcp.tool
+    def search_decisions(
+        topic: str,
+        since: str | None = None,
+        limit: int = 5,
+    ) -> str:
+        """Find prior decisions / verdicts / policies on a topic.
+
+        Use this when the user asks "what did we decide about X?",
+        "have we resolved Y?", or "is there a policy on Z?". Filters
+        to ``category=decision``. Optional ``since`` (``YYYY-MM-DD``)
+        scopes the results to decisions made on or after that date,
+        so you can answer "what decisions did we ship this week?".
+        """
+        state = _require_state(state_getter())
+        return search_decisions_tool(state, topic=topic, since=since, limit=limit)
+
+    @mcp.tool
+    def list_articles_by_status(status: str, series: str | None = None) -> str:
+        """List case-study articles in a given workflow ``status``.
+
+        Use this when the user wants a stocktake: "what's still in
+        draft?", "show me the published case studies", "what's in
+        review for the WCAG toolkit series?". ``status`` must be one
+        of ``draft``, ``review``, ``published``, ``archive``. Optional
+        ``series`` (e.g. ``wcag-toolkit``) narrows the listing. The
+        result is grouped by file - one row per article, not per
+        chunk.
+        """
+        state = _require_state(state_getter())
+        return list_articles_by_status_tool(state, status=status, series=series)
+
+    @mcp.tool
+    def search_sprint_reports(
+        query: str,
+        project: str | None = None,
+        limit: int = 5,
+    ) -> str:
+        """Find sprint reports about a topic, optionally per-project.
+
+        Use this when the user asks "what shipped in last week's
+        sprint?", "how did the deploy sprint go?", or "summarize
+        sprint outcomes for the WCAG toolkit". Filters to
+        ``category=sprint-report``. ``project`` matches the ``series``
+        payload (``wcag-toolkit``, ``sdet-brain``, ``portfolio-v2``,
+        ``jarvis-brain``) so cross-project sprint queries are easy.
+        """
+        state = _require_state(state_getter())
+        return search_sprint_reports_tool(
+            state, query=query, project=project, limit=limit
         )
 
     return mcp
