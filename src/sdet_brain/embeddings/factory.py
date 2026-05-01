@@ -36,6 +36,7 @@ def _build_mlx(settings: Settings) -> IEmbedder:
     return MLXEmbedder(
         model_name=settings.mlx_model,
         vector_size=settings.mlx_vector_size,
+        mrl_truncate_to=settings.mlx_mrl_truncate_to,
     )
 
 

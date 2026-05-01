@@ -46,12 +46,21 @@ class Settings(BaseSettings):
         description="Primary embedding provider. Falls back to the other on failure.",
     )
     mlx_model: str = Field(
-        default="Qwen/Qwen3-Embedding-0.6B",
+        default="mlx-community/Qwen3-Embedding-8B-4bit-DWQ",
         description="HuggingFace model id for MLX local embeddings.",
     )
     mlx_vector_size: int = Field(
         default=1024,
-        description="Output dimensionality for the MLX embedding model.",
+        description="Output dimensionality after any MRL truncation.",
+    )
+    mlx_mrl_truncate_to: int | None = Field(
+        default=1024,
+        description=(
+            "Matryoshka truncation length. The 8B Qwen3-Embedding emits "
+            "4096 dims natively; setting this to 1024 keeps the leading "
+            "slice (~95% retention) so the existing collection schema "
+            "stays compatible. Set to None to keep the native dimension."
+        ),
     )
     gemini_api_key: str | None = Field(
         default=None,
