@@ -141,13 +141,28 @@ def state(storage: QdrantStorage) -> AppState:
 @pytest.fixture(autouse=True)
 def _patch_llm_and_sparse(monkeypatch: pytest.MonkeyPatch) -> _FakeLLM:
     fake_llm = _FakeLLM("hypothetical body about chunks")
+
+    class _FakeRouter:
+        def chat(self, messages, *, task="chat", max_tokens=512, temperature=0.7):  # type: ignore[no-untyped-def]
+            return fake_llm.chat(messages, max_tokens=max_tokens, temperature=temperature)
+
+        def generate(self, prompt, *, task="summarize", max_tokens=512, temperature=0.7):  # type: ignore[no-untyped-def]
+            return fake_llm.generate(prompt, max_tokens=max_tokens, temperature=temperature)
+
+        def chat_stream(self, messages, *, task="chat", max_tokens=512, temperature=0.7):  # type: ignore[no-untyped-def]
+            yield from fake_llm.chat_stream(messages, max_tokens=max_tokens, temperature=temperature)
+
+        def get(self, task):  # type: ignore[no-untyped-def]
+            return fake_llm
+
+    fake_router = _FakeRouter()
     monkeypatch.setattr(
-        "sdet_brain.server.tools.query_rewrite._llm",
-        lambda: fake_llm,
+        "sdet_brain.server.tools.query_rewrite.get_router",
+        lambda: fake_router,
     )
     monkeypatch.setattr(
-        "sdet_brain.server.tools.summarize_results._llm",
-        lambda: fake_llm,
+        "sdet_brain.server.tools.summarize_results.get_router",
+        lambda: fake_router,
     )
     monkeypatch.setattr(
         "sdet_brain.server.tools.query_rewrite._sparse",

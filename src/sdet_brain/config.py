@@ -129,7 +129,7 @@ class Settings(BaseSettings):
     # --- Local LLM (T2-05) ---
     llm_model: str = Field(
         default="mlx-community/Qwen3-Next-80B-A3B-Instruct-4bit",
-        description="Local MLX model id used by query_rewrite, summarize, and chat.",
+        description="Local MLX model id used for instruct-tier tasks (chat, summarize).",
     )
     llm_max_tokens: int = Field(
         default=512,
@@ -138,6 +138,20 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(
         default=0.7,
         description="Default sampling temperature (0.0 = deterministic, 1.0 = creative).",
+    )
+
+    # --- LLM routing tiers (T4-03) ---
+    llm_routing_enabled: bool = Field(
+        default=True,
+        description="When False, every task uses ``llm_model`` (v0.3.0 behaviour).",
+    )
+    llm_fast_model: str = Field(
+        default="mlx-community/gemma-4-26B-A4B-it-OptiQ-4bit",
+        description="Fast tier (HyDE rewrites, simple expansions).",
+    )
+    llm_reasoning_model: str = Field(
+        default="mlx-community/Qwen3-Next-80B-A3B-Thinking-4bit",
+        description="Reasoning tier (decomposition, judging).",
     )
 
 

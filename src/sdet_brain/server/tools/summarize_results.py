@@ -15,8 +15,9 @@ from sdet_brain.embeddings.sparse_embedder import (
     FastembedBM25,
     get_sparse_embedder,
 )
-from sdet_brain.llm import LLMError, get_llm
-from sdet_brain.llm.protocol import ILLM, ChatMessage
+from sdet_brain.llm import LLMError
+from sdet_brain.llm.factory import get_router
+from sdet_brain.llm.protocol import ChatMessage
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools._helpers import (
     ToolError,
@@ -39,15 +40,7 @@ _SUMMARY_SYSTEM = (
     "the topic, say so explicitly."
 )
 
-_LLM: ILLM | None = None
 _SPARSE: FastembedBM25 | None = None
-
-
-def _llm() -> ILLM:
-    global _LLM
-    if _LLM is None:
-        _LLM = get_llm()
-    return _LLM
 
 
 def _sparse() -> FastembedBM25:
@@ -99,14 +92,19 @@ def summarize_results(
         f"Topic: {topic}\n\nPassages:\n" + "\n\n".join(passages)
     )
     try:
-        summary = _llm().chat(
-            [
-                ChatMessage(role="system", content=_SUMMARY_SYSTEM),
-                ChatMessage(role="user", content=user_payload),
-            ],
-            max_tokens=512,
-            temperature=0.4,
-        ).strip()
+        summary = (
+            get_router()
+            .chat(
+                [
+                    ChatMessage(role="system", content=_SUMMARY_SYSTEM),
+                    ChatMessage(role="user", content=user_payload),
+                ],
+                task="summarize",
+                max_tokens=512,
+                temperature=0.4,
+            )
+            .strip()
+        )
     except LLMError as exc:
         raise ToolError(f"summarize failed: {exc}") from exc
     if not summary:

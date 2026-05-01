@@ -20,8 +20,9 @@ from sdet_brain.embeddings.sparse_embedder import (
     FastembedBM25,
     get_sparse_embedder,
 )
-from sdet_brain.llm import LLMError, get_llm
-from sdet_brain.llm.protocol import ILLM, ChatMessage
+from sdet_brain.llm import LLMError
+from sdet_brain.llm.factory import get_router
+from sdet_brain.llm.protocol import ChatMessage
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools._helpers import (
     ToolError,
@@ -42,16 +43,10 @@ _HYDE_SYSTEM = (
     "no preamble. Use the language of the query."
 )
 
-# Single shared lazy LLM + sparse embedder per process.
-_LLM: ILLM | None = None
+# Sparse encoder lazy singleton; the LLM goes through the shared
+# router so it picks the fast tier (gemma-4) instead of the 80B
+# instruct model - HyDE wants speed, not depth.
 _SPARSE: FastembedBM25 | None = None
-
-
-def _llm() -> ILLM:
-    global _LLM
-    if _LLM is None:
-        _LLM = get_llm()
-    return _LLM
 
 
 def _sparse() -> FastembedBM25:
@@ -80,14 +75,19 @@ def query_rewrite(
     collection_name = collection_or_default(collection)
 
     try:
-        hypothetical = _llm().chat(
-            [
-                ChatMessage(role="system", content=_HYDE_SYSTEM),
-                ChatMessage(role="user", content=query),
-            ],
-            max_tokens=256,
-            temperature=0.5,
-        ).strip()
+        hypothetical = (
+            get_router()
+            .chat(
+                [
+                    ChatMessage(role="system", content=_HYDE_SYSTEM),
+                    ChatMessage(role="user", content=query),
+                ],
+                task="fast",
+                max_tokens=256,
+                temperature=0.5,
+            )
+            .strip()
+        )
     except LLMError as exc:
         raise ToolError(f"query rewrite failed: {exc}") from exc
     if not hypothetical:
