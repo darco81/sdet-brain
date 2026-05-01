@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from sdet_brain.ingestion.frontmatter_schema import BrandFrontmatter
+
 
 @dataclass(frozen=True)
 class Chunk:
@@ -41,9 +43,16 @@ class Chunk:
 
 @dataclass(frozen=True)
 class ParsedDocument:
-    """A parsed Markdown document with its metadata and chunks."""
+    """A parsed Markdown document with its metadata and chunks.
+
+    ``frontmatter`` is the verbatim YAML header for backwards-compat;
+    ``brand_frontmatter`` is the validated :class:`BrandFrontmatter`
+    when the header matched the schema, else ``None``. Both can be
+    populated simultaneously (a header may carry extra keys).
+    """
 
     source_path: str
     content_hash: str
     frontmatter: dict[str, object] = field(default_factory=dict)
     chunks: tuple[Chunk, ...] = ()
+    brand_frontmatter: BrandFrontmatter | None = None

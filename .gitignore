@@ -50,3 +50,6 @@ models/
 
 # --- Local-only Claude Code session memory ---
 .remember/
+
+# --- Migration tool dry-run logs (apply logs are committed) ---
+migrations/*-dry-run.md

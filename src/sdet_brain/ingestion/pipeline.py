@@ -25,6 +25,7 @@ from qdrant_client.models import (
 )
 
 from sdet_brain.ingestion.document_parser import parse_markdown
+from sdet_brain.ingestion.frontmatter_schema import to_payload_fields
 from sdet_brain.ingestion.models import Chunk, ParsedDocument
 from sdet_brain.ingestion.source_classifier import SourceConfig, classify_source
 from sdet_brain.storage.collections import COLLECTION_NAME, utc_now_iso
@@ -184,7 +185,7 @@ def _build_payload(
     source_type: str,
     created_at: str,
 ) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "text": chunk.text,
         "source_path": document.source_path,
         "source_type": source_type,
@@ -198,6 +199,11 @@ def _build_payload(
         "content_hash": document.content_hash,
         "created_at": created_at,
     }
+    if document.brand_frontmatter is not None:
+        # Lift validated fields to top-level keys so Qdrant can build
+        # payload indexes on them (faster than nested-key filtering).
+        payload.update(to_payload_fields(document.brand_frontmatter))
+    return payload
 
 
 def _embed_in_batches(

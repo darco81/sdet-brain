@@ -33,6 +33,15 @@ PAYLOAD_INDEXES: dict[str, PayloadSchemaType] = {
     "source_path": PayloadSchemaType.KEYWORD,
     "content_hash": PayloadSchemaType.KEYWORD,
     "chunk_index": PayloadSchemaType.INTEGER,
+    # Structured frontmatter fields lifted to top-level payload (T2-01).
+    # Each key has at most a few hundred distinct values across the
+    # corpus, so KEYWORD indexes are cheap and let server-side filters
+    # short-circuit before scanning vectors.
+    "category": PayloadSchemaType.KEYWORD,
+    "status": PayloadSchemaType.KEYWORD,
+    "tags": PayloadSchemaType.KEYWORD,
+    "series": PayloadSchemaType.KEYWORD,
+    "language": PayloadSchemaType.KEYWORD,
 }
 
 
