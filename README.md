@@ -4,9 +4,11 @@
 > Desktop, Claude Code, OpenCode, and other MCP clients - so handoff documents
 > between threads stop being a chore.
 
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org)
+[![Tests](https://img.shields.io/badge/tests-213_passing-success.svg)](#testing)
 [![License](https://img.shields.io/badge/license-Proprietary-lightgrey.svg)](#license)
-[![Status](https://img.shields.io/badge/status-bootstrap-orange.svg)](#status)
+[![Status](https://img.shields.io/badge/status-production_local-success.svg)](#status)
 
 ## Why this exists
 
@@ -17,6 +19,35 @@ chat used to start with the same paste-the-context dance.
 SDET Brain is a single source of truth that any MCP-aware client can query
 through the same set of tools. Embeddings live in Qdrant, sources stay on
 disk, and a file watcher keeps the index fresh as I edit.
+
+## Quick start
+
+```bash
+# Prerequisites: Docker Desktop running, Python 3.12+, uv installed.
+
+# 1. Start Qdrant.
+docker compose -f docker/docker-compose.yml up -d qdrant
+
+# 2. Install + sync deps.
+uv sync
+
+# 3. Ingest your corpus (Markdown only, recursive).
+uv run sdet-brain-cli /path/to/your/markdown/corpus
+
+# 4. Run the daemon.
+uv run sdet-brain-server &
+
+# 5. Try it.
+sdet-brain-chat                          # terminal REPL
+sdet-brain run voice-check               # saved query template
+curl -s http://localhost:8080/search \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"query":"what we shipped","limit":5}' | jq .
+```
+
+For Claude Desktop / Claude Code MCP wiring, see the
+[Tier 1 sprint report](docs/sprints/v0.1.0-tier-1-sprint-report.md) and the
+Operations section below.
 
 ## Architecture (high level)
 
@@ -77,32 +108,15 @@ The four layers map to top-level packages: `server/`, `ingestion/`,
 | Ingestion | watchdog file watcher + python-frontmatter + semantic chunker |
 | Tooling | uv, mypy --strict, ruff, pytest |
 
-## Quick start
-
-> Prerequisites: macOS or Linux, Python 3.12+, [uv](https://docs.astral.sh/uv/),
-> Docker Desktop running.
+## Install from source
 
 ```bash
 git clone git@github.com:darco81/sdet-brain.git
 cd sdet-brain
-
-# 1. Install dependencies into a managed venv.
 uv sync --extra dev
-
-# 2. Copy env template and fill in any secrets you need.
-cp .env.example .env
-
-# 3. Start Qdrant in the background.
+cp .env.example .env   # fill in any secrets you need
 docker compose -f docker/docker-compose.yml up -d qdrant
-
-# 4. (Coming in T1-06) Start the REST + MCP server.
-uv run sdet-brain-server
-```
-
-Until the server task lands, use the smoke test to verify the install:
-
-```bash
-uv run pytest -q
+uv run pytest -q       # verify the install (213 passing)
 ```
 
 ## Embeddings
@@ -198,21 +212,64 @@ works directly there:
 }
 ```
 
-## MCP tools
+## Daily usage
 
-The MCP server exposes five tools - one liveness probe and the four
-core capabilities.
+### REPL chat (`sdet-brain-chat`)
 
-| Tool | Purpose |
-| --- | --- |
-| `ping` | Cheap liveness probe; returns `{status, service}`. |
-| `search(query, limit=5, source_type?, min_score=0.0)` | Semantic search with an optional source-type filter and a minimum cosine-similarity threshold. Returns Markdown-formatted hits with score, heading path, and chunk text. |
-| `ingest_path(path, force=false)` | Run the ingestion pipeline against a file or directory. Honours the content-hash cache unless `force` is set. Returns the same `IngestStats` summary as the CLI. |
-| `list_sources(source_type?)` | Group every indexed chunk by source path. Filter by source type to scope the listing. |
-| `get_chunk_neighbors(source_path, chunk_index, window=2)` | Pull the chunks surrounding a hit (clamped to file bounds). Useful when a search result needs more context. |
+Multi-turn conversation in the terminal. Streaming tokens, slash
+commands, inline `[N]` citations from the retrieved corpus.
 
-Tool descriptions visible to Claude include "use when" / "don't use
-when" hints to keep call patterns predictable. Inspect with
+```bash
+$ sdet-brain-chat
+> co planujemy na publication week
+[streaming response with [1], [2] citation markers]
+> /sources
+[1] /Users/.../from-the-field/wcag-toolkit-part-1.en.md  score=0.78
+    short snippet of the cited chunk...
+[2] /Users/.../sprint-reports/v0.5.0-tier-5-dx-sprint.md score=0.72
+> /save publication-plan
+> /quit
+```
+
+Slash commands: `/help`, `/clear`, `/sources`, `/save NAME`,
+`/load NAME`, `/quit`. Conversation JSON dumps live under
+`~/.sdet-brain/conversations/`.
+
+### Saved templates (`sdet-brain run`)
+
+YAML query templates with Jinja2 substitution.
+
+```bash
+$ sdet-brain template list
+$ sdet-brain run voice-check --var topic="self-deprecating opener"
+$ sdet-brain run series-status --var number="01"
+```
+
+Pre-shipped: `voice-check`, `series-status`, `decision-history`,
+`wcag-fact-check`. Custom templates land in
+`~/.sdet-brain/templates/<name>.yaml` and override the shipped ones
+on name collision.
+
+### MCP tools (11)
+
+Available to Claude Desktop / Claude Code / OpenCode / any MCP-aware
+client over stdio, SSE, or streamable HTTP.
+
+**Core (5)** - `ping`, `search`, `ingest_path`, `list_sources`,
+`get_chunk_neighbors`.
+
+**Domain (5)** - `search_voice_samples`, `search_smaczki`,
+`search_decisions`, `list_articles_by_status`,
+`search_sprint_reports`. Each preset filter on `category` so the LLM
+picks the right tool from the user's phrasing.
+
+**LLM-backed (3)** - `query_rewrite` (HyDE expansion via gemma-4
+fast tier), `summarize_results` (cited summary via Qwen-Next-Instruct),
+`multi_query_search` (Thinking-tier decomposition into 3-5 sub-queries
+with RRF fusion).
+
+Tool descriptions visible to Claude include "Use when…" hints to
+keep call patterns predictable. Inspect the catalogue with
 `npx @modelcontextprotocol/inspector uv run sdet-brain-mcp-stdio`.
 
 ## How to ingest your corpus
@@ -405,21 +462,35 @@ curl -X PUT localhost:6333/collections/sdet_brand_v1/snapshots/recover \
   -d '{"location":"<snapshot path>"}'
 ```
 
-## Project status
+## Status
 
-Currently at `v0.1.1` (Tier 1 polish). Tier 1 MVP (`v0.1.0`)
-shipped 2026-04-30; Phase A follow-ups (`v0.1.1`) shipped same day.
-Tier 2 / Tier 3 are sequenced for May 2026 after the Series #01
-publication window.
+**v0.5.0 - Production-ready (local-only).** Six sprints shipped between
+2026-04-30 and 2026-05-01.
 
-| Tier | Status | Goal | Tracked in |
+| Tier | Tag | Highlights | Tracked in |
 | --- | --- | --- | --- |
-| 1 (`v0.1.0`) | shipped | MVP - local Qdrant, ingestion pipeline, MCP server, 4 core tools | SDE-18..SDE-27 |
-| 1 polish (`v0.1.1`) | shipped | bash healthcheck, env-driven paths, batch cache-check, chunker tail merge | SDE-37..SDE-40 |
-| 2 (`v0.2.0`) | pending | Domain tools, hybrid search, reranking, local LLM | SDE-28..SDE-32 |
-| 3 (`v0.3.0`) | pending | Conversational chat, eval suite, VPS deploy with HMAC auth | SDE-33..SDE-36 |
+| 1 | `v0.1.0` | MVP - Qdrant + MLX embeddings + 4 core MCP tools + watcher | SDE-18..SDE-27 |
+| 1 polish | `v0.1.1` | Bash healthcheck, env-driven paths, perf optimizations | SDE-37..SDE-40 |
+| 2 | `v0.2.0` | Hybrid search (BM25 + RRF) + cross-encoder reranking + 5 domain tools + frontmatter taxonomy | SDE-28..SDE-31 |
+| 3 | `v0.3.0` | Local MLX LLM (Qwen3-Next-80B) + conversational `/chat` + SSE streaming | SDE-32, SDE-33 |
+| 4 | `v0.4.0` | Tier 4 ALL IN - Qwen3-Embedding-8B + tiered LLM router + multi-query agentic retrieval | SDE-63..SDE-65, SDE-70 |
+| 5 | `v0.5.0` | DX - REPL CLI + inline citations + saved templates | SDE-77..SDE-79, SDE-81 |
 
-See [`docs/sprints/`](docs/sprints/) for per-task sprint reports.
+**213 tests passing.** mypy --strict + ruff clean across 70 source files.
+
+See [`docs/sprints/`](docs/sprints/) for per-tier sprint reports and
+[`CHANGELOG.md`](CHANGELOG.md) for the per-version changelog.
+
+### Backlog (post-deploy)
+
+- VPS deployment (`brand.sdet.it` + HMAC auth + Gemini fallback) - `SDE-35`
+- SQLite conversation persistence + FTS5 - `SDE-80`
+- Reranker upgrade (Qwen3-Reranker MLX) - `SDE-66`
+- GraphRAG-lite (entity + relation extraction) - `SDE-67`
+- PDF ingestion (DeepSeek-OCR-2) - `SDE-68`
+- Image ingestion (qwen3-vl) - `SDE-69`
+
+Each backlog item has explicit reopen criteria in Linear.
 
 ## Development workflow
 

@@ -5,7 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Project highlights
+
+- **6 sprints** between 2026-04-30 and 2026-05-01 - Tier 1 MVP
+  through Tier 5 DX.
+- **213 tests** passing; mypy --strict + ruff clean across 70 source
+  files.
+- **2906+ chunks** indexed across the brand corpus + the brain's own
+  README / CHANGELOG / sprint reports.
+- **11 MCP tools** (5 core + 5 domain + 3 LLM-backed) plus a REST
+  API with SSE streaming on `/chat`.
+- **Top-tier 2026 stack**: Qwen3-Embedding-8B-4bit-DWQ (MTEB 70.58)
+  with MRL truncation to 1024, hybrid dense + BM25 fused via RRF,
+  cross-encoder reranking, tiered local MLX LLMs (gemma-4-26B fast /
+  Qwen3-Next-80B Instruct + Thinking), multi-query agentic
+  retrieval.
+- **Daily ergonomics**: `sdet-brain-chat` REPL, inline `[N]`
+  citations with structured Source panel, `sdet-brain run`
+  templates with Jinja2 substitution.
+- **Zero cloud dependencies, zero API keys** for the core flow.
+  Gemini stays available as a typed fallback for VPS deploys.
+
 ## [Unreleased]
+
+Backlog (post-Series #01 publication week):
+
+- VPS deployment with `brand.sdet.it` + HMAC auth + Gemini fallback (`SDE-35`)
+- SQLite conversation persistence with FTS5 search (`SDE-80`)
+- Reranker upgrade to Qwen3-Reranker MLX (`SDE-66`)
+- GraphRAG-lite entity + relation extraction (`SDE-67`)
+- PDF and image ingestion (`SDE-68`, `SDE-69`)
+
+Each backlog item has explicit reopen criteria in Linear.
 
 ## [0.5.0] - 2026-05-01 - Tier 5 DX: citations + REPL + templates
 
