@@ -7,7 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-05-01 - Tier 3 brain: local LLM + chat
+## [0.4.0] - 2026-05-01 - Tier 4 brain: tiered routing + agentic retrieval + 8B embedder
+
+May Day evening Tier 4 ALL-IN sprint. Three substantive code shipments
+plus four explicit deferrals.
+
+### Added
+
+- **Tiered LLM routing** (`SDE-63`). New `sdet_brain.llm.router` with
+  `LLMRouter.select_model(task)` mapping six task types onto three
+  tiers: `gemma-4-26B-A4B-it-OptiQ-4bit` (fast), `Qwen3-Next-80B-A3B-Instruct-4bit`
+  (instruct/chat/summarize), `Qwen3-Next-80B-A3B-Thinking-4bit`
+  (reasoning/decompose/judge). Per-model `MLXLLm` cache so the second
+  call to a given task pays no cold start. `query_rewrite` now fires
+  the gemma-4 fast tier; `summarize_results` uses Qwen-Next-Instruct.
+  `Settings.LLM_ROUTING_ENABLED=False` collapses to v0.3.0 single-model
+  behaviour.
+
+- **Multi-query agentic retrieval** (`SDE-64`). New MCP tool
+  `multi_query_search`. Decomposes a multi-hop / compound question
+  into 3-5 sub-queries via the Thinking tier, hybrid-searches each in
+  turn, fuses the ranked lists with Reciprocal Rank Fusion (k=60),
+  de-dupes by chunk id, returns the merged top-K alongside the
+  decomposition for auditability. Robust JSON extraction handles
+  fenced and bare LLM replies; falls back to single-query behaviour
+  on parse failure. Brain now exposes 11 MCP tools (was 10).
+
+- **Embedding upgrade** (`SDE-65`). Default dense embedder swapped from
+  `Qwen/Qwen3-Embedding-0.6B` to `mlx-community/Qwen3-Embedding-8B-4bit-DWQ`
+  (top of MTEB at the time of the upgrade, 70.58). MRL truncation
+  takes the leading 1024 dims of the 4096-dim native output (~95%
+  retention per the published Qwen3 evaluations) so the existing
+  Qdrant collection schema is unchanged. New `MLXEmbedder.mrl_truncate_to`
+  parameter and `Settings.MLX_MRL_TRUNCATE_TO` (default 1024).
+
+### Migration
+
+- Pre-upgrade Qdrant snapshot:
+  `sdet_brand_v1-3556520363950657-2026-05-01-16-04-43.snapshot` (1.4 GB)
+  in the container, with a redundant local copy at
+  `/tmp/qdrant-snapshot-pre-tier4-20260501-1804.snapshot`. Pre-upgrade
+  git tag `pre-tier4-20260501-1804` for one-command code rollback.
+- Collection wiped and re-ingested with the 8B embedder. Final state
+  after self-knowledge re-ingest: **2882 chunks** across the brand
+  corpus + the brain's own README, CHANGELOG, and `docs/sprints/`.
+
+### Smoke regressions (preserved)
+
+- "multi-page audit strategy" → MULTI-PAGE-AUDIT-FEATURE-PROMPT.md
+- "port-collision" hyphenated keyword → THURSDAY-DEPLOY-SPRINT-REPORT.md
+- `category=smaczki` payload filter → case-study-01-SMACZKI.md
+
+### Tests
+
+- 165 → 186 (+21): 11 router, 10 multi-query.
+
+### Quality gates at release
+
+- `uv run ruff check src tests` - clean.
+- `uv run mypy --strict src` - 67 source files clean.
+- `uv run pytest -q` - **186 passed**.
+
+### Atomic commits
+
+- `a0c1189` feat(llm): tiered routing (gemma-4 / Qwen-Next / Thinking) (SDE-63)
+- `5ff18a2` feat(server): multi-query agentic retrieval with Thinking decomposition (SDE-64)
+- `80aa336` feat(embeddings): Qwen3-Embedding-8B-4bit-DWQ with MRL 1024-dim truncation (SDE-65)
+
+### Deferred (created in Linear with explicit rationale)
+
+- `SDE-66` Reranker upgrade - Qwen3-Reranker MLX variants are
+  decoder-style, not cross-encoders. Wrapping them as fastembed-
+  compatible cross-encoders is a bigger lift than the gain over
+  jinaai-v2 at this corpus shape. Reopen on demand.
+- `SDE-67` GraphRAG-lite - entity/relation extraction over 2700
+  chunks is a 90-180 min batch; doesn't fit cleanly in autonomous
+  scope. Reopen with a supervised batch + checkpoint scaffold.
+- `SDE-68` PDF ingestion - no PDFs in the active corpus paths.
+  YAGNI; reopen when an actual PDF lands.
+- `SDE-69` Image ingestion via Ollama qwen3-vl - corpus has very
+  few image references. Reopen when Series #02+ brings visual
+  material.
 
 Block 3 of the May-Day overnight sprint. Adds local-first LLM
 inference and a conversational chat endpoint on top of the v0.2.0
