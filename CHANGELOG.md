@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-01 - Tier 5 DX: citations + REPL + templates
+
+May Day evening Tier 5 DX sprint. Three feature commits, daily-use
+quality-of-life improvements on top of the v0.4.0 stack.
+
+### Added
+
+- **Citation-aware chat** (`SDE-77`). System prompt instructs the LLM
+  to mark factual statements with inline `[N]` markers (and `[N][M]`
+  for combined sources). `ChatResponse.sources` is now a list of
+  structured `Source` objects (`n`, `source_path`, `chunk_index`,
+  `score`, `snippet`) instead of bare path strings. SSE final frame
+  ships `Source.model_dump(mode="json")`. HTML test client renders a
+  collapsible `<details>` Sources panel with paths, scores, and
+  italic snippets.
+
+- **`sdet-brain run` template runner** (`SDE-79`). YAML query
+  templates with Jinja2 substitution, scanned from
+  `~/.sdet-brain/templates/` and `examples/templates/` (user
+  templates win on name collision). Subcommands:
+  `sdet-brain run NAME [--var KEY=VAL]`,
+  `sdet-brain template list`, `sdet-brain template show NAME`.
+  Tools dispatch in-process so the daemon doesn't need to be
+  running. Four pre-shipped templates ship under
+  `examples/templates/`: voice-check (search_voice_samples),
+  series-status (multi_query_search), decision-history
+  (search_decisions), wcag-fact-check (search with sprint-reports
+  filter).
+
+- **`sdet-brain-chat` REPL** (`SDE-78`). Terminal chat client backed
+  by the live `/chat` SSE endpoint. prompt_toolkit drives input +
+  persistent history at `~/.sdet-brain/chat_history`. httpx streams
+  tokens. Slash commands: `/help`, `/clear`, `/sources` (renders
+  structured Source as `[N] path score=… snippet…`),
+  `/save NAME` + `/load NAME` (JSON round-trip in
+  `~/.sdet-brain/conversations/`), `/quit`. `parse_command()` is a
+  pure function so unit tests cover every branch without
+  prompt_toolkit or httpx.
+
+### Dependencies
+
+- Added `prompt-toolkit>=3.0`.
+
+### Tests
+
+- 186 → 213 (+27): 2 chat citation tests, 13 template tests, 12 REPL tests.
+
+### Quality gates at release
+
+- `uv run ruff check src tests` - clean.
+- `uv run mypy --strict src` - 70 source files clean.
+- `uv run pytest -q` - **213 passed**.
+
+### Atomic commits
+
+- `0a1bc9e` feat(chat): inline citations [N] + structured sources panel (SDE-77)
+- `6066d76` feat(cli): saved templates + chat REPL (sdet-brain, sdet-brain-chat) (SDE-79, SDE-78)
+
+### Deferred (created in Linear with explicit reopen criteria)
+
+- `SDE-80` SQLite conversation persistence + FTS5 + `recall_conversation`
+  MCP tool - 2h+ scope spanning schema migration, `/chat` endpoint
+  backwards-compat plumbing, 4 new REST routes, new MCP tool, opt-out
+  Settings flag, and REPL integration. Reopen post-Series #01 with a
+  fresh session budgeted for the full design. The REPL's existing
+  `/save NAME` + `/load NAME` JSON round-trip covers the casual
+  "save this train of thought" use case in the meantime.
+
 ## [0.4.0] - 2026-05-01 - Tier 4 brain: tiered routing + agentic retrieval + 8B embedder
 
 May Day evening Tier 4 ALL-IN sprint. Three substantive code shipments
