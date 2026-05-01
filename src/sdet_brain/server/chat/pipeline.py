@@ -20,10 +20,12 @@ from typing import Any
 from sdet_brain.embeddings.protocol import IEmbedder
 from sdet_brain.embeddings.sparse_embedder import ISparseEmbedder
 from sdet_brain.llm.protocol import ILLM, ChatMessage
-from sdet_brain.server.chat.models import ChatRequest
+from sdet_brain.server.chat.models import ChatRequest, Source
 from sdet_brain.server.chat.prompt_template import SYSTEM_PROMPT, format_context
 from sdet_brain.storage.collections import COLLECTION_NAME
 from sdet_brain.storage.qdrant_client import QdrantStorage
+
+_SNIPPET_CHARS = 200
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +50,13 @@ class ChatPipeline:
 
     def _retrieve_context(
         self, query: str, top_k: int
-    ) -> tuple[list[tuple[str, str]], list[str]]:
-        """Return ``(numbered_passages, source_paths)`` for ``query``."""
+    ) -> tuple[list[tuple[str, str]], list[Source]]:
+        """Return ``(numbered_passages, sources)`` for ``query``.
+
+        ``sources`` is a list of :class:`Source` objects in the same
+        order as ``passages`` so the index in either list maps onto
+        the 1-based ``[N]`` citation marker the LLM is asked to use.
+        """
         if not query.strip():
             return [], []
         dense = self._embedder.embed([query])
@@ -64,30 +71,37 @@ class ChatPipeline:
             limit=top_k,
         )
         passages: list[tuple[str, str]] = []
-        sources: list[str] = []
-        seen_sources: set[str] = set()
-        for hit in hits:
+        sources: list[Source] = []
+        for n, hit in enumerate(hits, start=1):
             payload = dict(hit.payload or {})
             raw_source = payload.get("source_path")
             raw_text = payload.get("text")
+            raw_chunk = payload.get("chunk_index")
             source_path = raw_source if isinstance(raw_source, str) else "(unknown)"
             text = raw_text if isinstance(raw_text, str) else ""
+            chunk_index = raw_chunk if isinstance(raw_chunk, int) else None
             passages.append((source_path, text))
-            if source_path not in seen_sources:
-                sources.append(source_path)
-                seen_sources.add(source_path)
+            sources.append(
+                Source(
+                    n=n,
+                    source_path=source_path,
+                    chunk_index=chunk_index,
+                    score=float(hit.score),
+                    snippet=text[:_SNIPPET_CHARS].strip(),
+                )
+            )
         return passages, sources
 
     def _build_messages(
         self, request: ChatRequest
-    ) -> tuple[list[ChatMessage], list[str], int]:
+    ) -> tuple[list[ChatMessage], list[Source], int]:
         """Stitch system prompt + retrieved context + history."""
         latest_user = next(
             (m.content for m in reversed(request.messages) if m.role == "user"),
             "",
         )
         passages: list[tuple[str, str]] = []
-        sources: list[str] = []
+        sources: list[Source] = []
         if request.retrieve:
             passages, sources = self._retrieve_context(latest_user, request.top_k)
 
@@ -103,7 +117,7 @@ class ChatPipeline:
             messages.append(ChatMessage(role=turn.role, content=turn.content))
         return messages, sources, len(passages)
 
-    def respond(self, request: ChatRequest) -> tuple[str, list[str], int]:
+    def respond(self, request: ChatRequest) -> tuple[str, list[Source], int]:
         """Single-shot reply."""
         messages, sources, retrieved_count = self._build_messages(request)
         reply = self._llm.chat(messages, max_tokens=request.max_tokens)
@@ -111,7 +125,7 @@ class ChatPipeline:
 
     def respond_stream(
         self, request: ChatRequest
-    ) -> tuple[Iterator[str], list[str], int]:
+    ) -> tuple[Iterator[str], list[Source], int]:
         """Token-by-token streaming variant.
 
         Returns the iterator plus the citations / count so the caller

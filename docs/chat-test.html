@@ -12,6 +12,10 @@
   .turn { margin: 0.5rem 0; }
   .role { font-weight: bold; text-transform: lowercase; }
   .sources { color: #666; font-size: 0.85rem; margin-top: 0.5rem; }
+  .sources summary { cursor: pointer; user-select: none; }
+  .sources ol { margin: 0.25rem 0 0 1rem; padding: 0; }
+  .sources li { margin-bottom: 0.4rem; }
+  .sources .snippet { color: #888; margin-top: 0.15rem; font-style: italic; }
 </style>
 </head>
 <body>
@@ -52,10 +56,37 @@ function render(role, text) {
 
 function appendSources(wrap, list) {
   if (!list.length) return;
-  const s = document.createElement("div");
-  s.className = "sources";
-  s.textContent = "Sources: " + list.join(", ");
-  wrap.appendChild(s);
+  const details = document.createElement("details");
+  details.className = "sources";
+  const summary = document.createElement("summary");
+  summary.textContent = "Sources (" + list.length + ")";
+  details.appendChild(summary);
+  const ol = document.createElement("ol");
+  for (const src of list) {
+    const li = document.createElement("li");
+    if (typeof src === "string") {
+      li.textContent = src;
+    } else {
+      // Structured Source: {n, source_path, chunk_index, score, snippet}
+      const path = document.createElement("code");
+      path.textContent = src.source_path || "(unknown)";
+      li.appendChild(path);
+      if (typeof src.score === "number") {
+        const meta = document.createElement("small");
+        meta.textContent = " · score " + src.score.toFixed(3);
+        li.appendChild(meta);
+      }
+      if (src.snippet) {
+        const snip = document.createElement("div");
+        snip.className = "snippet";
+        snip.textContent = src.snippet;
+        li.appendChild(snip);
+      }
+    }
+    ol.appendChild(li);
+  }
+  details.appendChild(ol);
+  wrap.appendChild(details);
 }
 
 document.getElementById("chat-form").addEventListener("submit", async (e) => {

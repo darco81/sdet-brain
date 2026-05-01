@@ -23,6 +23,7 @@ dependencies = [
     "tqdm>=4.66.0",
     "mlx-embeddings>=0.0.3 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "fastembed>=0.4",
+    "prompt-toolkit>=3.0.52",
 ]
 
 [project.optional-dependencies]

@@ -187,7 +187,11 @@ def test_chat_non_stream_returns_reply_and_sources(client: TestClient) -> None:
     body = resp.json()
     assert body["reply"] == "Hello world reply"
     assert body["retrieved_chunk_count"] >= 1
-    assert "/var/test/seed.md" in body["sources"]
+    sources = body["sources"]
+    assert sources, "expected at least one structured source"
+    assert sources[0]["n"] == 1
+    assert sources[0]["source_path"] == "/var/test/seed.md"
+    assert sources[0]["snippet"]
 
 
 def test_chat_stream_emits_sse_data_frames(client: TestClient) -> None:
@@ -265,3 +269,42 @@ def test_chat_sse_payload_is_valid_json_per_frame(client: TestClient) -> None:
     assert frames
     for frame in frames:
         json.loads(frame)  # raises if any frame is malformed
+
+
+def test_chat_sse_done_frame_carries_structured_sources(
+    client: TestClient,
+) -> None:
+    """The terminal SSE frame must serialise Source objects as dicts."""
+    with client.stream(
+        "POST",
+        "/chat",
+        json={
+            "messages": [{"role": "user", "content": "structured sources"}],
+            "stream": True,
+        },
+    ) as resp:
+        body = b"".join(resp.iter_bytes()).decode()
+    done_frames = [
+        json.loads(line[len("data: ") :])
+        for line in body.split("\n\n")
+        if line.startswith("data: ") and '"event"' in line
+    ]
+    assert done_frames, "expected a final done event"
+    final = done_frames[-1]
+    assert final["event"] == "done"
+    assert isinstance(final["sources"], list)
+    assert final["sources"], "expected at least one source"
+    src = final["sources"][0]
+    assert {"n", "source_path", "score", "snippet"}.issubset(src)
+
+
+def test_chat_system_prompt_contains_citation_instructions(
+    client: TestClient,
+) -> None:
+    """The system message should instruct the LLM to use [N] markers."""
+    payload = {"messages": [{"role": "user", "content": "anything"}], "stream": False}
+    client.post("/chat", json=payload)
+    sent = _FakeLLM.last_messages
+    assert sent is not None
+    system_text = sent[0].content
+    assert "[N]" in system_text or "Citations" in system_text

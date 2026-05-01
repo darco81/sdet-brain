@@ -37,9 +37,26 @@ class ChatRequest(BaseModel):
     max_tokens: Annotated[int, Field(ge=16, le=2048)] = 512
 
 
+class Source(BaseModel):
+    """One numbered citation surfaced from retrieved context.
+
+    The chat pipeline assigns each retrieved chunk a 1-based ``n`` when
+    it builds the system prompt; the LLM is instructed to mark its
+    statements with ``[n]``. Clients can join `Source.n` against the
+    inline markers in `ChatResponse.reply` to render footnote-style
+    sources.
+    """
+
+    n: int
+    source_path: str
+    chunk_index: int | None = None
+    score: float = 0.0
+    snippet: str = ""
+
+
 class ChatResponse(BaseModel):
     """Non-streaming response shape."""
 
     reply: str
-    sources: list[str] = Field(default_factory=list)
+    sources: list[Source] = Field(default_factory=list)
     retrieved_chunk_count: int = 0

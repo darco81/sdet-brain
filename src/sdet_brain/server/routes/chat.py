@@ -17,7 +17,7 @@ from sdet_brain.embeddings.sparse_embedder import (
 )
 from sdet_brain.llm import get_llm
 from sdet_brain.llm.protocol import ILLM
-from sdet_brain.server.chat.models import ChatRequest, ChatResponse
+from sdet_brain.server.chat.models import ChatRequest, ChatResponse, Source
 from sdet_brain.server.chat.pipeline import ChatPipeline
 from sdet_brain.server.dependencies import require_embedder, require_storage
 from sdet_brain.storage.qdrant_client import QdrantStorage
@@ -59,15 +59,24 @@ def _build_pipeline(
 
 
 def _sse_iter(
-    stream: Iterator[str], sources: list[str], retrieved_count: int
+    stream: Iterator[str], sources: list[Source], retrieved_count: int
 ) -> Iterator[str]:
-    """Wrap the LLM token stream in SSE frames + a final metadata frame."""
+    """Wrap the LLM token stream in SSE frames + a final metadata frame.
+
+    The terminal frame ships the structured ``Source`` list so clients
+    can render footnote-style citations next to the inline ``[N]``
+    markers the LLM produces.
+    """
     for chunk in stream:
         yield f"data: {json.dumps({'text': chunk})}\n\n"
     yield (
         "data: "
         + json.dumps(
-            {"event": "done", "sources": sources, "retrieved": retrieved_count}
+            {
+                "event": "done",
+                "sources": [s.model_dump(mode="json") for s in sources],
+                "retrieved": retrieved_count,
+            }
         )
         + "\n\n"
     )
