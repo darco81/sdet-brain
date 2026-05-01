@@ -108,6 +108,24 @@ class Settings(BaseSettings):
         description="Comma-separated paths to brief / spec / methodology trees.",
     )
 
+    # --- Reranking (T2-04) ---
+    rerank_enabled: bool = Field(
+        default=False,
+        description="When True, search re-orders candidates with a cross-encoder before returning.",
+    )
+    rerank_model: str = Field(
+        default="jinaai/jina-reranker-v2-base-multilingual",
+        description="Cross-encoder model id (must be in fastembed's CROSS_ENCODER_REGISTRY).",
+    )
+    rerank_top_k_retrieve: int = Field(
+        default=30,
+        description="How many candidates to over-fetch from Qdrant before reranking.",
+    )
+    rerank_top_k_return: int = Field(
+        default=5,
+        description="Top-K to return after reranking.",
+    )
+
 
 def parse_path_list(value: str) -> list[str]:
     """Split a comma-separated env var into a clean list of paths."""
