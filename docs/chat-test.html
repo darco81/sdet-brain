@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<title>SDET Brain - chat test</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.4rem; }
+  textarea { width: 100%; min-height: 4rem; font-family: inherit; padding: 0.5rem; }
+  pre { background: #f4f4f4; padding: 0.75rem; border-radius: 4px; white-space: pre-wrap; }
+  button { padding: 0.5rem 1rem; cursor: pointer; }
+  .turn { margin: 0.5rem 0; }
+  .role { font-weight: bold; text-transform: lowercase; }
+  .sources { color: #666; font-size: 0.85rem; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<h1>SDET Brain - chat test client</h1>
+
+<p><small>Daemon: <code>http://localhost:8080/chat</code>. Multi-turn,
+SSE streaming. First message after server start pays the LLM cold start
+(~30-60s on M4 Pro).</small></p>
+
+<div id="history"></div>
+
+<form id="chat-form">
+  <label for="prompt">Wiadomość:</label>
+  <textarea id="prompt" placeholder="Co planujemy na deploy day pn 4.05?"></textarea>
+  <label><input type="checkbox" id="stream" checked /> Stream (SSE)</label>
+  <label><input type="checkbox" id="retrieve" checked /> Retrieve from corpus</label>
+  <button type="submit">Send</button>
+</form>
+
+<script>
+const messages = [];
+const history = document.getElementById("history");
+
+function render(role, text) {
+  const wrap = document.createElement("div");
+  wrap.className = "turn";
+  const label = document.createElement("span");
+  label.className = "role";
+  label.textContent = role + ":";
+  const pre = document.createElement("pre");
+  pre.textContent = text;
+  wrap.appendChild(label);
+  wrap.appendChild(document.createTextNode(" "));
+  wrap.appendChild(pre);
+  history.appendChild(wrap);
+  return { wrap, pre };
+}
+
+function appendSources(wrap, list) {
+  if (!list.length) return;
+  const s = document.createElement("div");
+  s.className = "sources";
+  s.textContent = "Sources: " + list.join(", ");
+  wrap.appendChild(s);
+}
+
+document.getElementById("chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = document.getElementById("prompt").value.trim();
+  if (!text) return;
+  document.getElementById("prompt").value = "";
+  messages.push({ role: "user", content: text });
+  render("user", text);
+
+  const stream = document.getElementById("stream").checked;
+  const retrieve = document.getElementById("retrieve").checked;
+  const payload = { messages, stream, retrieve, top_k: 6, max_tokens: 512 };
+
+  const replyView = render("assistant", stream ? "" : "...");
+
+  const resp = await fetch("http://localhost:8080/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!stream) {
+    const data = await resp.json();
+    replyView.pre.textContent = data.reply;
+    appendSources(replyView.wrap, data.sources || []);
+    messages.push({ role: "assistant", content: data.reply });
+    return;
+  }
+
+  // SSE: parse `data: {...}` frames manually.
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let assembled = "";
+  let lastSources = [];
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() || "";
+    for (const frame of frames) {
+      if (!frame.startsWith("data: ")) continue;
+      try {
+        const data = JSON.parse(frame.slice(6));
+        if (data.event === "done") {
+          lastSources = data.sources || [];
+          continue;
+        }
+        if (data.text) {
+          assembled += data.text;
+          replyView.pre.textContent = assembled;
+        }
+      } catch (err) {
+        console.warn("bad SSE frame", frame);
+      }
+    }
+  }
+  appendSources(replyView.wrap, lastSources);
+  messages.push({ role: "assistant", content: assembled });
+});
+</script>
+</body>
+</html>

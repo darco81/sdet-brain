@@ -19,6 +19,7 @@ from fastapi import FastAPI
 
 from sdet_brain.config import Settings, get_settings
 from sdet_brain.server.mcp_server import build_mcp
+from sdet_brain.server.routes.chat import router as chat_router
 from sdet_brain.server.routes.health import router as health_router
 from sdet_brain.server.routes.ingest import router as ingest_router
 from sdet_brain.server.routes.search import router as search_router
@@ -87,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(status_router)
     app.include_router(search_router)
     app.include_router(ingest_router)
+    app.include_router(chat_router)
 
     # Mount the FastMCP streamable HTTP transport so any client that
     # speaks MCP-over-HTTP can reach the same tools as the stdio/SSE
