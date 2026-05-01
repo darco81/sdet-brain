@@ -48,7 +48,7 @@ def storage(qdrant_url: str) -> Iterator[QdrantStorage]:
 @pytest.fixture
 def collection(storage: QdrantStorage) -> Iterator[str]:
     name = f"sdet_brain_watcher_test_{os.getpid()}_{id(storage)}"
-    storage.ensure_collection(name, VECTOR_SIZE)
+    storage.ensure_hybrid_collection(name, VECTOR_SIZE)
     yield name
     if storage.collection_exists(name):
         storage.client.delete_collection(collection_name=name)
@@ -66,6 +66,37 @@ class _FakeEmbedder:
 
     def health_check(self) -> bool:
         return True
+
+
+class _FakeSparseEmbedder:
+    """Offline sparse stub matching the watcher pipeline contract."""
+
+    model_name = "fake/sparse"
+
+    def embed(self, texts):  # type: ignore[no-untyped-def]
+        from sdet_brain.embeddings.sparse_embedder import SparseVector
+
+        out = []
+        for text in texts:
+            base = abs(hash(text))
+            out.append(
+                SparseVector(
+                    indices=[base % 1024, (base + 1) % 1024],
+                    values=[1.0, 0.5],
+                )
+            )
+        return out
+
+    def health_check(self) -> bool:
+        return True
+
+
+@pytest.fixture(autouse=True)
+def _patch_sparse_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "sdet_brain.ingestion.pipeline.get_sparse_embedder",
+        _FakeSparseEmbedder,
+    )
 
 
 def _make_watcher(

@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from qdrant_client.models import (
     FieldCondition,
@@ -23,12 +23,25 @@ from qdrant_client.models import (
     MatchValue,
     PointStruct,
 )
+from qdrant_client.models import (
+    SparseVector as QdrantSparseVector,
+)
 
+from sdet_brain.embeddings.sparse_embedder import (
+    ISparseEmbedder,
+    SparseVector,
+    get_sparse_embedder,
+)
 from sdet_brain.ingestion.document_parser import parse_markdown
 from sdet_brain.ingestion.frontmatter_schema import to_payload_fields
 from sdet_brain.ingestion.models import Chunk, ParsedDocument
 from sdet_brain.ingestion.source_classifier import SourceConfig, classify_source
-from sdet_brain.storage.collections import COLLECTION_NAME, utc_now_iso
+from sdet_brain.storage.collections import (
+    COLLECTION_NAME,
+    DENSE_VECTOR_NAME,
+    SPARSE_VECTOR_NAME,
+    utc_now_iso,
+)
 
 if TYPE_CHECKING:
     from sdet_brain.embeddings.protocol import IEmbedder
@@ -218,10 +231,41 @@ def _embed_in_batches(
     return vectors
 
 
+def _sparse_in_batches(
+    sparse_embedder: ISparseEmbedder,
+    chunks: tuple[Chunk, ...],
+    batch_size: int,
+) -> list[SparseVector]:
+    """BM25-encode chunks in the same batch shape as the dense embedder."""
+    vectors: list[SparseVector] = []
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start : start + batch_size]
+        vectors.extend(sparse_embedder.embed([chunk.text for chunk in batch]))
+    return vectors
+
+
+def _build_named_vector(dense: list[float], sparse: SparseVector) -> Any:
+    """Pack dense + sparse into the dict shape Qdrant expects for upsert.
+
+    The return type is ``Any`` because the qdrant-client `PointStruct`
+    declares its ``vector`` field with an invariant ``dict`` whose
+    value union we'd otherwise have to spell out exhaustively. A
+    runtime-correct dict is enough; the type-system gymnastics around
+    that union belong inside the SDK, not us.
+    """
+    return {
+        DENSE_VECTOR_NAME: dense,
+        SPARSE_VECTOR_NAME: QdrantSparseVector(
+            indices=sparse.indices, values=sparse.values
+        ),
+    }
+
+
 def _ingest_document(
     document: ParsedDocument,
     storage: QdrantStorage,
     embedder: IEmbedder,
+    sparse_embedder: ISparseEmbedder,
     collection: str,
     source_type: str,
     batch_size: int,
@@ -253,12 +297,18 @@ def _ingest_document(
             f"Embedder returned {len(vectors)} vectors for "
             f"{len(document.chunks)} chunks - aborting upsert."
         )
+    sparse_vectors = _sparse_in_batches(sparse_embedder, document.chunks, batch_size)
+    if len(sparse_vectors) != len(document.chunks):
+        raise RuntimeError(
+            f"Sparse embedder returned {len(sparse_vectors)} vectors for "
+            f"{len(document.chunks)} chunks - aborting upsert."
+        )
 
     created_at = utc_now_iso()
     points = [
         PointStruct(
             id=_chunk_point_id(document.source_path, chunk.chunk_index),
-            vector=vectors[idx],
+            vector=_build_named_vector(vectors[idx], sparse_vectors[idx]),
             payload=_build_payload(document, chunk, source_type, created_at),
         )
         for idx, chunk in enumerate(document.chunks)
@@ -279,6 +329,7 @@ def ingest_path(
     force_reindex: bool = False,
     exclude_dirs: tuple[Path, ...] = (),
     progress: Iterator[Path] | None = None,
+    sparse_embedder: ISparseEmbedder | None = None,
 ) -> IngestStats:
     """Walk ``path`` and ingest every Markdown file beneath it.
 
@@ -306,6 +357,7 @@ def ingest_path(
         ``None``.
     """
     config = source_config or SourceConfig()
+    sparse = sparse_embedder if sparse_embedder is not None else get_sparse_embedder()
     files = list(_iter_markdown_files(path, exclude_dirs=exclude_dirs))
     iterator: Iterator[Path] = progress if progress is not None else iter(files)
 
@@ -329,6 +381,7 @@ def ingest_path(
                 document,
                 storage,
                 embedder,
+                sparse,
                 collection,
                 source_type,
                 batch_size,

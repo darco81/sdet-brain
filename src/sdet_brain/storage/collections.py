@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Literal, TypedDict
+from typing import Final, Literal, TypedDict
 
 from qdrant_client.models import Distance, PayloadSchemaType
 
@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 
 COLLECTION_NAME: Literal["sdet_brand_v1"] = "sdet_brand_v1"
 DEFAULT_DISTANCE: Distance = Distance.COSINE
+
+# Named-vector identifiers (T2-03). The collection now stores both a
+# dense semantic vector ("dense") and a sparse BM25 vector ("bm25").
+# Hybrid search fuses the two via RRF at query time.
+DENSE_VECTOR_NAME: Final[str] = "dense"
+SPARSE_VECTOR_NAME: Final[str] = "bm25"
 
 SourceType = Literal[
     "project-knowledge",
@@ -77,31 +83,39 @@ def init_collections(
     *,
     name: str = COLLECTION_NAME,
 ) -> bool:
-    """Create the primary collection and payload indexes if missing.
+    """Create the primary hybrid collection and payload indexes if missing.
+
+    The collection carries two named vectors:
+      * ``dense`` (cosine, ``vector_size``) - semantic embedding.
+      * ``bm25`` (sparse, IDF modifier) - BM25 term vector.
 
     Parameters
     ----------
     storage:
         Configured `QdrantStorage` instance.
     vector_size:
-        Embedding dimensionality. Must match the producer (MLX = 1024,
-        Gemini = 768).
+        Dense embedding dimensionality. Must match the producer
+        (MLX = 1024, Gemini = 768).
     name:
         Collection name override. Defaults to the production
-        ``sdet_brand_v1`` constant; tests pass a disposable name so they
-        do not stomp on real data.
+        ``sdet_brand_v1`` constant; tests pass a disposable name so
+        they do not stomp on real data.
 
     Returns ``True`` when the collection was created during this call,
     ``False`` when it already existed (idempotent re-init).
     """
-    created = storage.ensure_collection(
+    created = storage.ensure_hybrid_collection(
         name=name,
-        vector_size=vector_size,
-        distance=DEFAULT_DISTANCE,
+        dense_vector_size=vector_size,
+        dense_distance=DEFAULT_DISTANCE,
     )
     storage.ensure_payload_indexes(name, PAYLOAD_INDEXES)
     if created:
-        logger.info("Created Qdrant collection %s (vector_size=%d)", name, vector_size)
+        logger.info(
+            "Created hybrid Qdrant collection %s (dense=%d, sparse=bm25)",
+            name,
+            vector_size,
+        )
     else:
         logger.info("Qdrant collection %s already exists", name)
     return created

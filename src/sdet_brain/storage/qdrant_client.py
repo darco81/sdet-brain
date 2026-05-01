@@ -18,11 +18,19 @@ from qdrant_client.models import (
     CollectionInfo,
     Distance,
     Filter,
+    Fusion,
+    FusionQuery,
+    Modifier,
     PayloadSchemaType,
     PointStruct,
+    Prefetch,
     QueryResponse,
     ScoredPoint,
+    SparseVectorParams,
     VectorParams,
+)
+from qdrant_client.models import (
+    SparseVector as QdrantSparseVector,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,10 +90,12 @@ class QdrantStorage:
         vector_size: int,
         distance: Distance = Distance.COSINE,
     ) -> bool:
-        """Create the collection if it does not exist.
+        """Create a single-vector collection if it does not exist.
 
         Returns ``True`` when the collection was created in this call,
-        ``False`` if it was already present (idempotent).
+        ``False`` if it was already present (idempotent). Hybrid
+        collections (T2-03) should call :meth:`ensure_hybrid_collection`
+        instead.
         """
         if self.collection_exists(name):
             return False
@@ -93,6 +103,43 @@ class QdrantStorage:
             collection_name=name,
             vectors_config=VectorParams(size=vector_size, distance=distance),
         )
+        return True
+
+    def ensure_hybrid_collection(
+        self,
+        name: str,
+        dense_vector_size: int,
+        *,
+        dense_distance: Distance = Distance.COSINE,
+        dense_name: str = "dense",
+        sparse_name: str = "bm25",
+    ) -> bool:
+        """Create a hybrid (named-vectors) collection if missing.
+
+        The collection has one named dense vector (cosine, configurable
+        size) and one named sparse vector (BM25 with IDF modifier).
+        Returns ``True`` when this call created the collection.
+        """
+        if self.collection_exists(name):
+            return False
+        self._client.create_collection(
+            collection_name=name,
+            vectors_config={
+                dense_name: VectorParams(
+                    size=dense_vector_size, distance=dense_distance
+                )
+            },
+            sparse_vectors_config={
+                sparse_name: SparseVectorParams(modifier=Modifier.IDF)
+            },
+        )
+        return True
+
+    def delete_collection(self, name: str) -> bool:
+        """Drop ``name`` if present. Returns ``True`` on actual delete."""
+        if not self.collection_exists(name):
+            return False
+        self._client.delete_collection(collection_name=name)
         return True
 
     def ensure_payload_indexes(
@@ -140,19 +187,70 @@ class QdrantStorage:
         limit: int = 10,
         query_filter: Filter | None = None,
         score_threshold: float | None = None,
+        vector_name: str = "dense",
     ) -> list[ScoredPoint]:
         """Run a dense-vector similarity search.
 
         Uses ``query_points`` under the hood (the post-1.10 API). The
-        legacy ``search`` is kept by Qdrant for compatibility but is
-        soft-deprecated.
+        ``vector_name`` argument names the dense vector inside a hybrid
+        collection (default ``"dense"``); single-vector legacy
+        collections accept the same call as long as their vector name
+        is ``"dense"`` (we recreate them that way in T2-03).
         """
         response: QueryResponse = self._client.query_points(
             collection_name=collection,
             query=list(query_vector),
+            using=vector_name,
             limit=limit,
             query_filter=query_filter,
             score_threshold=score_threshold,
+            with_payload=True,
+        )
+        return list(response.points)
+
+    def hybrid_search(
+        self,
+        collection: str,
+        *,
+        dense_vector: Sequence[float],
+        sparse_indices: Sequence[int],
+        sparse_values: Sequence[float],
+        limit: int = 10,
+        prefetch_limit: int = 30,
+        query_filter: Filter | None = None,
+        dense_name: str = "dense",
+        sparse_name: str = "bm25",
+    ) -> list[ScoredPoint]:
+        """Hybrid search: dense + sparse fused via Reciprocal Rank Fusion.
+
+        Each prefetch fetches ``prefetch_limit`` candidates against its
+        own vector index; the outer ``query=FusionQuery(RRF)`` merges
+        them and trims to ``limit``. ``query_filter`` (if given) is
+        applied to *both* prefetches so the same payload constraint
+        scopes both legs.
+        """
+        sparse_payload = QdrantSparseVector(
+            indices=list(sparse_indices), values=list(sparse_values)
+        )
+        prefetches = [
+            Prefetch(
+                query=list(dense_vector),
+                using=dense_name,
+                limit=prefetch_limit,
+                filter=query_filter,
+            ),
+            Prefetch(
+                query=sparse_payload,
+                using=sparse_name,
+                limit=prefetch_limit,
+                filter=query_filter,
+            ),
+        ]
+        response: QueryResponse = self._client.query_points(
+            collection_name=collection,
+            prefetch=prefetches,
+            query=FusionQuery(fusion=Fusion.RRF),
+            limit=limit,
             with_payload=True,
         )
         return list(response.points)

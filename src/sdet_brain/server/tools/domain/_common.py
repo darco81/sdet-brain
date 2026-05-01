@@ -14,6 +14,10 @@ from qdrant_client.models import (
     ScoredPoint,
 )
 
+from sdet_brain.embeddings.sparse_embedder import (
+    FastembedBM25,
+    get_sparse_embedder,
+)
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools._helpers import (
     ToolError,
@@ -23,6 +27,16 @@ from sdet_brain.server.tools._helpers import (
     safe_int,
     safe_str,
 )
+
+# Reuse the same lazy BM25 across all domain tools.
+_SPARSE: FastembedBM25 | None = None
+
+
+def _sparse_embedder() -> FastembedBM25:
+    global _SPARSE
+    if _SPARSE is None:
+        _SPARSE = get_sparse_embedder()
+    return _SPARSE
 
 _DEFAULT_LIMIT = 5
 _MAX_LIMIT = 50
@@ -76,9 +90,13 @@ def run_category_search(
     vectors = embedder.embed([query])
     if not vectors:
         return []
-    return storage.search(
+
+    sparse_vec = _sparse_embedder().embed([query])[0]
+    return storage.hybrid_search(
         collection=collection_name,
-        query_vector=vectors[0],
+        dense_vector=vectors[0],
+        sparse_indices=sparse_vec.indices,
+        sparse_values=sparse_vec.values,
         limit=limit,
         query_filter=Filter(must=cast(Any, must)),
     )

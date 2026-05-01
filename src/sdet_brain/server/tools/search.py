@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from sdet_brain.embeddings.sparse_embedder import (
+    FastembedBM25,
+    get_sparse_embedder,
+)
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools._helpers import (
     ToolError,
@@ -13,6 +17,17 @@ from sdet_brain.server.tools._helpers import (
     source_type_filter,
 )
 
+# Single shared lazy BM25 instance per process so the MCP path
+# matches the FastAPI route's caching behaviour.
+_SPARSE: FastembedBM25 | None = None
+
+
+def _sparse() -> FastembedBM25:
+    global _SPARSE
+    if _SPARSE is None:
+        _SPARSE = get_sparse_embedder()
+    return _SPARSE
+
 
 def search(
     state: AppState,
@@ -22,8 +37,14 @@ def search(
     source_type: str | None = None,
     min_score: float = 0.0,
     collection: str | None = None,
+    hybrid: bool = True,
 ) -> str:
-    """Run a dense-vector search and format the hits as Markdown."""
+    """Run a hybrid (dense + BM25 RRF) search and format hits as Markdown.
+
+    ``hybrid=False`` falls back to dense-only, retained for benchmark
+    parity with v0.1.x. The default is hybrid because exact-keyword
+    queries (``"WCAG 2.2 AA"``) get materially better recall.
+    """
     if not query.strip():
         raise ToolError("query must not be empty")
     if limit <= 0 or limit > 50:
@@ -37,13 +58,24 @@ def search(
     if not vectors:
         return _format_empty(query, source_type)
 
-    results = storage.search(
-        collection=collection_name,
-        query_vector=vectors[0],
-        limit=limit,
-        query_filter=source_type_filter(source_type),
-        score_threshold=min_score if min_score > 0 else None,
-    )
+    if hybrid:
+        sparse_vec = _sparse().embed([query])[0]
+        results = storage.hybrid_search(
+            collection=collection_name,
+            dense_vector=vectors[0],
+            sparse_indices=sparse_vec.indices,
+            sparse_values=sparse_vec.values,
+            limit=limit,
+            query_filter=source_type_filter(source_type),
+        )
+    else:
+        results = storage.search(
+            collection=collection_name,
+            query_vector=vectors[0],
+            limit=limit,
+            query_filter=source_type_filter(source_type),
+            score_threshold=min_score if min_score > 0 else None,
+        )
     if not results:
         return _format_empty(query, source_type)
 

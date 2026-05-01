@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 import httpx
 import pytest
-from qdrant_client.models import PointStruct
+from qdrant_client.models import PointStruct, SparseVector
 
 from sdet_brain.config import Settings
 from sdet_brain.embeddings.factory import EmbedderSelection
@@ -54,7 +54,7 @@ def storage(qdrant_url: str) -> Iterator[QdrantStorage]:
 @pytest.fixture
 def collection(storage: QdrantStorage) -> Iterator[str]:
     name = f"sdet_brain_domain_test_{os.getpid()}_{id(storage)}"
-    storage.ensure_collection(name, VECTOR_SIZE)
+    storage.ensure_hybrid_collection(name, VECTOR_SIZE)
     # The DatetimeRange filter on `fm_created_at` requires a datetime
     # payload index; fast-fail if that wiring breaks.
     from qdrant_client.models import PayloadSchemaType
@@ -135,12 +135,20 @@ def _seed_chunk(
         payload["fm_created_at"] = fm_created_at
 
     embedder = _FakeEmbedder()
+    dense = embedder.embed([text])[0]
+    text_hash = abs(hash(text))
     storage.upsert_points(
         collection,
         [
             PointStruct(
                 id=abs(hash(f"{source_path}-{chunk_index}")) % 10_000_000,
-                vector=embedder.embed([text])[0],
+                vector={
+                    "dense": dense,
+                    "bm25": SparseVector(
+                        indices=[text_hash % 1024, (text_hash + 1) % 1024],
+                        values=[1.0, 0.5],
+                    ),
+                },
                 payload=payload,
             )
         ],

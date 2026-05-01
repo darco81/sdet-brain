@@ -14,6 +14,10 @@ from sdet_brain.embeddings.reranker import (
     FastembedReranker,
     RerankCandidate,
 )
+from sdet_brain.embeddings.sparse_embedder import (
+    FastembedBM25,
+    get_sparse_embedder,
+)
 from sdet_brain.server.dependencies import require_embedder, require_storage
 from sdet_brain.storage.collections import COLLECTION_NAME
 from sdet_brain.storage.qdrant_client import QdrantStorage
@@ -24,6 +28,10 @@ router = APIRouter()
 # request that opts in; subsequent requests reuse the warm encoder.
 _RERANKER: FastembedReranker | None = None
 _RERANKER_MODEL: str | None = None
+
+# Single shared lazy BM25 sparse embedder. Built once per process so
+# hybrid queries don't reload the tokenizer.
+_SPARSE: FastembedBM25 | None = None
 
 
 def _get_reranker(settings: Settings) -> FastembedReranker:
@@ -37,6 +45,13 @@ def _get_reranker(settings: Settings) -> FastembedReranker:
     return _RERANKER
 
 
+def _get_sparse_embedder() -> FastembedBM25:
+    global _SPARSE
+    if _SPARSE is None:
+        _SPARSE = get_sparse_embedder()
+    return _SPARSE
+
+
 class SearchRequest(BaseModel):
     query: Annotated[str, Field(min_length=1)]
     limit: Annotated[int, Field(ge=1, le=50)] = 10
@@ -46,6 +61,13 @@ class SearchRequest(BaseModel):
         default=None,
         description=(
             "Override RERANK_ENABLED for this request. None = use settings default."
+        ),
+    )
+    hybrid: bool = Field(
+        default=True,
+        description=(
+            "Hybrid (dense + BM25 RRF) is the default. Set false to "
+            "run a dense-only query (used by benchmarks)."
         ),
     )
 
@@ -66,6 +88,7 @@ class SearchResponse(BaseModel):
     count: int
     results: list[SearchResultItem]
     reranked: bool = False
+    hybrid: bool = False
 
 
 def _build_filter(source_type_filter: str | None) -> Filter | None:
@@ -108,14 +131,30 @@ def post_search(
 
     vectors = embedder.embed([body.query])
     if not vectors:
-        return SearchResponse(query=body.query, count=0, results=[], reranked=False)
-    points = storage.search(
-        collection=COLLECTION_NAME,
-        query_vector=vectors[0],
-        limit=fetch_limit,
-        query_filter=_build_filter(body.source_type_filter),
-        score_threshold=body.score_threshold,
-    )
+        return SearchResponse(
+            query=body.query, count=0, results=[], reranked=False, hybrid=body.hybrid
+        )
+
+    query_filter = _build_filter(body.source_type_filter)
+    if body.hybrid:
+        sparse = _get_sparse_embedder().embed([body.query])
+        sparse_vec = sparse[0]
+        points = storage.hybrid_search(
+            collection=COLLECTION_NAME,
+            dense_vector=vectors[0],
+            sparse_indices=sparse_vec.indices,
+            sparse_values=sparse_vec.values,
+            limit=fetch_limit,
+            query_filter=query_filter,
+        )
+    else:
+        points = storage.search(
+            collection=COLLECTION_NAME,
+            query_vector=vectors[0],
+            limit=fetch_limit,
+            query_filter=query_filter,
+            score_threshold=body.score_threshold,
+        )
 
     items = [_point_to_item(p) for p in points]
 
@@ -130,9 +169,17 @@ def post_search(
             for r in rerank_results
         ]
         return SearchResponse(
-            query=body.query, count=len(items), results=items, reranked=True
+            query=body.query,
+            count=len(items),
+            results=items,
+            reranked=True,
+            hybrid=body.hybrid,
         )
 
     return SearchResponse(
-        query=body.query, count=len(items[: body.limit]), results=items[: body.limit], reranked=False
+        query=body.query,
+        count=len(items[: body.limit]),
+        results=items[: body.limit],
+        reranked=False,
+        hybrid=body.hybrid,
     )

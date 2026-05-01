@@ -14,7 +14,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from qdrant_client.models import PointStruct
+from qdrant_client.models import PointStruct, SparseVector
 
 from sdet_brain.config import Settings
 from sdet_brain.embeddings.factory import EmbedderSelection
@@ -53,7 +53,7 @@ def storage(qdrant_url: str) -> Iterator[QdrantStorage]:
 @pytest.fixture
 def collection(storage: QdrantStorage) -> Iterator[str]:
     name = f"sdet_brain_tools_test_{os.getpid()}_{id(storage)}"
-    storage.ensure_collection(name, VECTOR_SIZE)
+    storage.ensure_hybrid_collection(name, VECTOR_SIZE)
     yield name
     if storage.collection_exists(name):
         storage.client.delete_collection(collection_name=name)
@@ -95,10 +95,16 @@ def _seed_chunks(
     embedder = _FakeEmbedder()
     payloads = []
     for index in range(chunk_count):
+        dense = embedder.embed([f"chunk-{index}"])[0]
         payloads.append(
             PointStruct(
                 id=index + abs(hash(source_path)) % 1_000_000,
-                vector=embedder.embed([f"chunk-{index}"])[0],
+                vector={
+                    "dense": dense,
+                    "bm25": SparseVector(
+                        indices=[index, index + 1], values=[1.0, 0.5]
+                    ),
+                },
                 payload={
                     "text": f"text body for chunk {index}",
                     "source_path": source_path,

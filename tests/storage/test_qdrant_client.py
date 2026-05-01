@@ -15,6 +15,7 @@ from qdrant_client.models import (
     Filter,
     MatchValue,
     PointStruct,
+    SparseVector,
 )
 
 from sdet_brain.storage.collections import (
@@ -31,24 +32,71 @@ def _vec(seed: int) -> list[float]:
     return [((seed * 31 + i) % 100) / 100.0 for i in range(VECTOR_SIZE)]
 
 
+def _named_vec(seed: int) -> dict[str, object]:
+    """Hybrid named-vector payload: dense + tiny sparse stub."""
+    return {
+        "dense": _vec(seed),
+        "bm25": SparseVector(
+            indices=[seed % 32], values=[1.0]
+        ),
+    }
+
+
 def test_ensure_collection_is_idempotent(
     storage: QdrantStorage, temp_collection: str
 ) -> None:
-    created_first = storage.ensure_collection(temp_collection, VECTOR_SIZE)
-    created_second = storage.ensure_collection(temp_collection, VECTOR_SIZE)
+    created_first = storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
+    created_second = storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     assert created_first is True
     assert created_second is False
     assert storage.collection_exists(temp_collection)
 
 
+def test_delete_collection_returns_correct_flag(
+    storage: QdrantStorage, temp_collection: str
+) -> None:
+    storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
+    assert storage.delete_collection(temp_collection) is True
+    assert storage.delete_collection(temp_collection) is False
+
+
+def test_hybrid_search_returns_fused_hits(
+    storage: QdrantStorage, temp_collection: str
+) -> None:
+    storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
+    storage.upsert_points(
+        temp_collection,
+        [
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector={
+                    "dense": _vec(seed=i),
+                    "bm25": SparseVector(indices=[i, i + 1], values=[1.0, 0.5]),
+                },
+                payload={"label": f"chunk-{i}"},
+            )
+            for i in range(5)
+        ],
+    )
+    hits = storage.hybrid_search(
+        temp_collection,
+        dense_vector=_vec(seed=0),
+        sparse_indices=[0, 1],
+        sparse_values=[1.0, 0.5],
+        limit=3,
+    )
+    assert len(hits) == 3
+    assert hits[0].payload is not None
+
+
 def test_upsert_and_search_round_trip(
     storage: QdrantStorage, temp_collection: str
 ) -> None:
-    storage.ensure_collection(temp_collection, VECTOR_SIZE)
+    storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     points = [
         PointStruct(
             id=str(uuid.uuid4()),
-            vector=_vec(seed=i),
+            vector=_named_vec(i),
             payload={"label": f"chunk-{i}", "source_path": f"/var/sdet-brain-fixtures/file-{i}.md"},
         )
         for i in range(5)
@@ -66,13 +114,13 @@ def test_upsert_and_search_round_trip(
 def test_delete_by_filter_removes_only_matching_points(
     storage: QdrantStorage, temp_collection: str
 ) -> None:
-    storage.ensure_collection(temp_collection, VECTOR_SIZE)
+    storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     storage.upsert_points(
         temp_collection,
         [
             PointStruct(
                 id=str(uuid.uuid4()),
-                vector=_vec(seed=i),
+                vector=_named_vec(i),
                 payload={"source_path": "/var/sdet-brain-fixtures/keep.md"},
             )
             for i in range(3)
@@ -80,7 +128,7 @@ def test_delete_by_filter_removes_only_matching_points(
         + [
             PointStruct(
                 id=str(uuid.uuid4()),
-                vector=_vec(seed=10 + i),
+                vector=_named_vec(10 + i),
                 payload={"source_path": "/var/sdet-brain-fixtures/drop.md"},
             )
             for i in range(2)
@@ -125,9 +173,9 @@ def test_init_collections_creates_collection_and_indexes(
 def test_upsert_points_returns_written_count(
     storage: QdrantStorage, temp_collection: str, count: int
 ) -> None:
-    storage.ensure_collection(temp_collection, VECTOR_SIZE)
+    storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     points = [
-        PointStruct(id=str(uuid.uuid4()), vector=_vec(seed=i), payload={})
+        PointStruct(id=str(uuid.uuid4()), vector=_named_vec(i), payload={})
         for i in range(count)
     ]
     assert storage.upsert_points(temp_collection, points) == count
