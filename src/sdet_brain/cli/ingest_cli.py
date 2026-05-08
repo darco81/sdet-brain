@@ -30,21 +30,17 @@ from sdet_brain.ingestion.source_classifier import (
 from sdet_brain.storage.collections import COLLECTION_NAME, init_collections
 from sdet_brain.storage.qdrant_client import QdrantStorage
 
-# Local-machine defaults for Dariusz's setup. Each can be overridden
-# via the matching env var (PROJECT_KNOWLEDGE_PATHS, DRAFTS_PATHS, ...).
-# Empty env var means "no roots for this source_type" - paths fall
-# through to `unknown`.
+# Per-source-type root paths come from env vars only
+# (PROJECT_KNOWLEDGE_PATHS, DRAFTS_PATHS, ARTICLES_PATHS,
+# SPRINT_REPORTS_PATHS, BRIEF_PATHS). Empty env var means "no roots for
+# this source_type" - files outside all roots fall through to
+# source_type=unknown.
 LOCAL_DEFAULT_PATHS: dict[str, list[str]] = {
-    "project-knowledge": ["/Users/dariusz/dev/darco81/sdet-brand-drafts"],
-    "drafts": ["/Users/dariusz/dev/darco81/sdet-brand-drafts"],
-    "articles": [
-        "/Users/dariusz/dev/darco81/portfolio-v2/src/content/from-the-field"
-    ],
-    "sprint-reports": [
-        "/Users/dariusz/dev/darco81/sdet-wcag-toolkit/docs/sprints",
-        "/Users/dariusz/dev/darco81/sdet-wcag-pro/docs/sprints",
-    ],
-    "brief": ["/Users/dariusz/dev/darco81/portfolio-v2/brief"],
+    "project-knowledge": [],
+    "drafts": [],
+    "articles": [],
+    "sprint-reports": [],
+    "brief": [],
 }
 
 logger = logging.getLogger("sdet_brain.cli.ingest")
@@ -82,9 +78,8 @@ def _build_source_config(settings: Settings) -> SourceConfig:
     """Return the source-classifier config built from runtime settings.
 
     Each source_type reads its env var (``DRAFTS_PATHS`` etc.). Empty
-    env var falls back to `LOCAL_DEFAULT_PATHS` so Dariusz's local box
-    keeps working without `.env` tweaks. VPS deploys (T3-03) override
-    every env var explicitly.
+    env var falls back to `LOCAL_DEFAULT_PATHS` (an empty list per
+    source_type by default).
     """
     mapping: dict[str, list[str]] = {}
     overrides = {

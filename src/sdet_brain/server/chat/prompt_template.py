@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 SYSTEM_PROMPT = """\
-Jesteś SDET Brain - asystent dla Dariusza Kowalskiego.
+Jesteś SDET Brain - asystent dla właściciela tego corpusu.
 Znasz brand voice, projekty, decyzje z corpusu (drafts, articles,
 sprint reports, decisions, voice samples).
 

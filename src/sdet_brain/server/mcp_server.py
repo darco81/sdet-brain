@@ -143,15 +143,15 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
 
     @mcp.tool
     def search_voice_samples(topic: str, limit: int = 5) -> str:
-        """Find Dariusz's authentic voice samples for a given topic.
+        """Find authentic voice samples for a given topic.
 
-        Use this when the user wants quotable phrasing in his style:
-        openers, closers, transitions, structural variety, hooks. The
-        tool filters to chunks tagged ``category=voice-sample`` so the
-        result is voice material only - never strategy docs or
-        sprint reports. Prefer this over `search` whenever the user
-        asks "how does Dariusz say X" or "find me a self-deprecating
-        opener".
+        Use this when the user wants quotable phrasing in their own
+        style: openers, closers, transitions, structural variety,
+        hooks. The tool filters to chunks tagged
+        ``category=voice-sample`` so the result is voice material
+        only - never strategy docs or sprint reports. Prefer this over
+        `search` whenever the user asks "how do I usually say X" or
+        "find me a self-deprecating opener".
         """
         state = _require_state(state_getter())
         return search_voice_samples_tool(state, topic=topic, limit=limit)
@@ -283,10 +283,10 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
 
         Use this when the user asks "what shipped in last week's
         sprint?", "how did the deploy sprint go?", or "summarize
-        sprint outcomes for the WCAG toolkit". Filters to
+        sprint outcomes for project X". Filters to
         ``category=sprint-report``. ``project`` matches the ``series``
-        payload (``wcag-toolkit``, ``sdet-brain``, ``portfolio-v2``,
-        ``jarvis-brain``) so cross-project sprint queries are easy.
+        payload (any series tag in the corpus) so cross-project sprint
+        queries are easy.
         """
         state = _require_state(state_getter())
         return search_sprint_reports_tool(

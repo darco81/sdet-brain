@@ -63,7 +63,7 @@ services:
     volumes:
       # Replace the default with whichever tree holds your corpus
       # before opting into the profile.
-      - ${SDET_BRAIN_CORPUS_HOST:-../../sdet-brand-drafts}:/corpus:ro
+      - ${SDET_BRAIN_CORPUS_HOST:-/path/to/your/markdown/corpus}:/corpus:ro
     command: ["sdet-brain-watcher"]
     networks:
       - sdet-brain-network

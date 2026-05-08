@@ -466,8 +466,8 @@ curl -X PUT localhost:6333/collections/sdet_brand_v1/snapshots/recover \
 
 Six release tiers (`v0.1.0` → `v0.5.0`) shipped between 2026-04-30 and
 2026-05-01 across three Claude Code sessions, driven by hand-written
-sprint prompts kept under
-[`../sdet-brand-drafts/`](../sdet-brand-drafts/) (`SDET-BRAIN-*-PROMPT.md`).
+sprint prompts kept in a sibling private directory (`SDET-BRAIN-*-PROMPT.md`
+files, not part of this repository).
 Each tier was scoped, tracked, and closed with the same discipline:
 
 - **Per-issue Linear tracking** with decisions, quality gates, and
@@ -553,10 +553,10 @@ sdet-brain/
 
 Detailed planning lives outside this repo (private):
 
-- `sdet-brand-drafts/SDET-BRAIN-BOOTSTRAP-PROMPT.md` - workflow + per-task
+- Workflow prompts (`SDET-BRAIN-BOOTSTRAP-PROMPT.md`) - per-task
   context handed to Claude Code overnight.
-- `sdet-brand-drafts/SDET-BRAIN-ARCHITECTURE.md` - decision log, performance
-  budgets, threat model.
+- Architecture log (`SDET-BRAIN-ARCHITECTURE.md`) - decisions,
+  performance budgets, threat model.
 
 ## License
 

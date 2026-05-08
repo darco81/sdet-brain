@@ -177,7 +177,7 @@ def _detect_series(stem_upper: str, stem: str) -> tuple[str | None, int | None, 
         series = series or "sdet-brain"
 
     if "PORTFOLIO" in stem_upper:
-        series = series or "portfolio-v2"
+        series = series or "portfolio"
 
     if "JARVIS" in stem_upper:
         series = series or "jarvis-brain"

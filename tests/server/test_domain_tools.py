@@ -314,7 +314,7 @@ def test_sprint_reports_filters_to_category(
 ) -> None:
     _seed_chunk(
         storage, collection, "/sr/wed.md",
-        text="deploy outcome", category="sprint-report", series="portfolio-v2",
+        text="deploy outcome", category="sprint-report", series="case-study-01",
     )
     _seed_chunk(
         storage, collection, "/sr/draft.md",
@@ -333,11 +333,11 @@ def test_sprint_reports_project_filter(
         text="wcag sprint", category="sprint-report", series="wcag-toolkit",
     )
     _seed_chunk(
-        storage, collection, "/sr/portfolio.md",
-        text="wcag sprint", category="sprint-report", series="portfolio-v2",
+        storage, collection, "/sr/example.md",
+        text="wcag sprint", category="sprint-report", series="case-study-01",
     )
     output = search_sprint_reports(
         state, query="sprint", project="wcag-toolkit", limit=5, collection=collection
     )
     assert "wcag.md" in output
-    assert "portfolio.md" not in output
+    assert "example.md" not in output

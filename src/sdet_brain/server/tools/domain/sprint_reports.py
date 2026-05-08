@@ -20,9 +20,8 @@ def search_sprint_reports(
 ) -> str:
     """Search for chunks tagged ``category=sprint-report``.
 
-    ``project`` filters by the ``series`` payload (one of
-    ``wcag-toolkit``, ``sdet-brain``, ``portfolio-v2``,
-    ``jarvis-brain``).
+    ``project`` filters by the ``series`` payload (any series tag the
+    classifier or corpus uses).
     """
     effective_limit = parse_limit(limit)
     hits = run_category_search(

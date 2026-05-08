@@ -8,7 +8,7 @@
 
 ## What shipped
 
-- Empty Python 3.12 project under `/Users/dariusz/dev/darco81/sdet-brain` with
+- Empty Python 3.12 project under `<repo>` with
   the package layout from the architecture doc (ingestion / embeddings /
   storage / server / cli + matching `tests/`).
 - `pyproject.toml` declaring runtime deps (FastAPI, FastMCP 3.0, qdrant-client,

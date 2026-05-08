@@ -28,7 +28,7 @@ from sdet_brain.ingestion.frontmatter_classifier import classify_path
         ("2026-04-30-linear-workspace-setup-decisions.md", "decision"),
         ("2026-04-30-wcag-pro-state.md", "other"),
         ("v0.3.0-build-report.md", "sprint-report"),
-        ("portfolio-v2-fix-summary.md", "other"),
+        ("my-project-fix-summary.md", "other"),
     ],
 )
 def test_category_classification(filename: str, expected_category: str) -> None:
@@ -73,10 +73,10 @@ def test_filename_suffix_overrides_body_language() -> None:
 
 
 def test_tags_strip_dates_and_stoplist() -> None:
-    result = classify_path(Path("2026-04-30-portfolio-v2-state.md"))
+    result = classify_path(Path("2026-04-30-my-project-state.md"))
     tags = result.frontmatter.tags
-    # Date prefix is dropped, stoplist words removed, but "portfolio" survives.
-    assert "portfolio" in tags
+    # Date prefix is dropped, stoplist words removed, but "project" survives.
+    assert "project" in tags
     assert "2026" not in tags
     assert "v0" not in tags  # stoplist
 
