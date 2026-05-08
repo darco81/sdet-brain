@@ -1,10 +1,10 @@
 # SDET Brain
 
-> Persistent RAG for the SDET brand domain. Shared context across Claude
+> Persistent RAG for a personal Markdown corpus. Shared context across Claude
 > Desktop, Claude Code, OpenCode, and other MCP clients - so handoff documents
 > between threads stop being a chore.
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.1-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org)
 [![Tests](https://img.shields.io/badge/tests-213_passing-success.svg)](#testing)
 [![License](https://img.shields.io/badge/license-Source--Available-yellow.svg)](LICENSE)
@@ -12,13 +12,33 @@
 
 ## Why this exists
 
-I write a lot of brand-related material in scattered Markdown files: project
+I write a lot of personal-corpus material in scattered Markdown files: project
 context, voice samples, decision logs, sprint reports. Every new Claude.ai
 chat used to start with the same paste-the-context dance.
 
 SDET Brain is a single source of truth that any MCP-aware client can query
 through the same set of tools. Embeddings live in Qdrant, sources stay on
 disk, and a file watcher keeps the index fresh as I edit.
+
+## What this is
+
+Personal RAG infrastructure. Single-user, local-first, MCP-native.
+Built for my own corpus and shared as reference.
+
+**Strong fits:**
+- Solo developers / consultants with their own Markdown corpus
+- Apple Silicon users wanting fully local embeddings + LLM
+- People wanting to share context across Claude Desktop / Claude Code /
+  OpenCode without copy-paste
+
+**Not a fit (yet):**
+- Multi-tenant teams (this is single-user by design)
+- Cloud-first / serverless deployments (built for a Mac)
+- Drop-in replacement for hosted RAG services
+- Plug-and-play without reading the architecture
+
+A more polished public release with demo corpus, setup tutorials, and
+production deployment guide is planned for a later milestone.
 
 ## Quick start
 
@@ -491,7 +511,7 @@ report to see the loop end-to-end.
 
 ## Status
 
-**v0.5.0 - Production-ready (local-only).** Six sprints shipped between
+**v0.5.1 - Source-available reference release.** Six sprints shipped between
 2026-04-30 and 2026-05-01.
 
 | Tier | Tag | Highlights |

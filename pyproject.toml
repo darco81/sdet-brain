@@ -1,10 +1,10 @@
 [project]
 name = "sdet-brain"
-version = "0.1.0"
-description = "Persistent RAG for SDET brand domain - shared context across Claude clients via MCP."
+version = "0.5.1"
+description = "Persistent RAG for a personal Markdown corpus - shared context across Claude clients via MCP."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "Proprietary" }
+license = { text = "Source-Available" }
 authors = [{ name = "Dariusz Kowalski", email = "darecki9k@gmail.com" }]
 keywords = ["rag", "mcp", "qdrant", "embeddings", "fastapi"]
 
