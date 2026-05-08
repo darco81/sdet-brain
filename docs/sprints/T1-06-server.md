@@ -1,5 +1,9 @@
 # Sprint Report: T1-06 FastAPI + FastMCP server skeleton
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-23](https://linear.app/sdet-it/issue/SDE-23/t1-06-fastapi-fastmcp-server-skeleton-stdio-sse-http)
 **Started:** 2026-04-30 16:00 (CET)
 **Done:** 2026-04-30 16:18 (CET)

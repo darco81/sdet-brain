@@ -1,5 +1,9 @@
 # Sprint Report: T1-01 Bootstrap repo + project structure + Docker scaffolding
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-18](https://linear.app/sdet-it/issue/SDE-18/t1-01-bootstrap-repo-project-structure-docker-scaffolding)
 **Started:** 2026-04-30 13:12 (CET)
 **Done:** 2026-04-30 13:18 (CET)

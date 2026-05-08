@@ -1,5 +1,9 @@
 # Sprint Report: T1-02 Qdrant Docker setup + collection scaffolding
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-19](https://linear.app/sdet-it/issue/SDE-19/t1-02-qdrant-docker-setup-collection-scaffolding)
 **Started:** 2026-04-30 13:18 (CET)
 **Blocked:** 2026-04-30 13:55 (CET) - Docker registry pulls hung indefinitely

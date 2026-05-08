@@ -494,14 +494,14 @@ report to see the loop end-to-end.
 **v0.5.0 - Production-ready (local-only).** Six sprints shipped between
 2026-04-30 and 2026-05-01.
 
-| Tier | Tag | Highlights | Tracked in |
-| --- | --- | --- | --- |
-| 1 | `v0.1.0` | MVP - Qdrant + MLX embeddings + 4 core MCP tools + watcher | SDE-18..SDE-27 |
-| 1 polish | `v0.1.1` | Bash healthcheck, env-driven paths, perf optimizations | SDE-37..SDE-40 |
-| 2 | `v0.2.0` | Hybrid search (BM25 + RRF) + cross-encoder reranking + 5 domain tools + frontmatter taxonomy | SDE-28..SDE-31 |
-| 3 | `v0.3.0` | Local MLX LLM (Qwen3-Next-80B) + conversational `/chat` + SSE streaming | SDE-32, SDE-33 |
-| 4 | `v0.4.0` | Tier 4 ALL IN - Qwen3-Embedding-8B + tiered LLM router + multi-query agentic retrieval | SDE-63..SDE-65, SDE-70 |
-| 5 | `v0.5.0` | DX - REPL CLI + inline citations + saved templates | SDE-77..SDE-79, SDE-81 |
+| Tier | Tag | Highlights |
+| --- | --- | --- |
+| 1 | `v0.1.0` | MVP - Qdrant + MLX embeddings + 4 core MCP tools + watcher |
+| 1 polish | `v0.1.1` | Bash healthcheck, env-driven paths, perf optimizations |
+| 2 | `v0.2.0` | Hybrid search (BM25 + RRF) + cross-encoder reranking + 5 domain tools + frontmatter taxonomy |
+| 3 | `v0.3.0` | Local MLX LLM (Qwen3-Next-80B) + conversational `/chat` + SSE streaming |
+| 4 | `v0.4.0` | Tier 4 ALL IN - Qwen3-Embedding-8B + tiered LLM router + multi-query agentic retrieval |
+| 5 | `v0.5.0` | DX - REPL CLI + inline citations + saved templates |
 
 **213 tests passing.** mypy --strict + ruff clean across 70 source files.
 
@@ -510,12 +510,12 @@ See [`docs/sprints/`](docs/sprints/) for per-tier sprint reports and
 
 ### Backlog (post-deploy)
 
-- VPS deployment (`brand.sdet.it` + HMAC auth + Gemini fallback) - `SDE-35`
-- SQLite conversation persistence + FTS5 - `SDE-80`
-- Reranker upgrade (Qwen3-Reranker MLX) - `SDE-66`
-- GraphRAG-lite (entity + relation extraction) - `SDE-67`
-- PDF ingestion (DeepSeek-OCR-2) - `SDE-68`
-- Image ingestion (qwen3-vl) - `SDE-69`
+- VPS deployment with HMAC auth + Gemini fallback
+- SQLite conversation persistence + FTS5
+- Reranker upgrade (Qwen3-Reranker MLX)
+- GraphRAG-lite (entity + relation extraction)
+- PDF ingestion (DeepSeek-OCR-2)
+- Image ingestion (qwen3-vl)
 
 Each backlog item has explicit reopen criteria in Linear.
 

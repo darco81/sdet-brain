@@ -1,5 +1,9 @@
 # Sprint Report: T1-08 File watcher with debouncing + delete handling
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-25](https://linear.app/sdet-it/issue/SDE-25/t1-08-file-watcher-with-debouncing-delete-handling)
 **Started:** 2026-04-30 16:34 (CET)
 **Done:** 2026-04-30 16:46 (CET)

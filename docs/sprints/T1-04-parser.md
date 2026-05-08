@@ -1,5 +1,9 @@
 # Sprint Report: T1-04 Markdown parser + frontmatter + semantic chunker
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-21](https://linear.app/sdet-it/issue/SDE-21/t1-04-markdown-parser-frontmatter-semantic-chunker)
 **Started:** 2026-04-30 15:38 (CET)
 **Done:** 2026-04-30 15:50 (CET)

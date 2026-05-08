@@ -1,5 +1,9 @@
 # Sprint Report: T1-07 Four core MCP tools
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-24](https://linear.app/sdet-it/issue/SDE-24/t1-07-4-core-mcp-tools-search-ingest-list-sources-get-chunk-neighbors)
 **Started:** 2026-04-30 16:18 (CET)
 **Done:** 2026-04-30 16:34 (CET)

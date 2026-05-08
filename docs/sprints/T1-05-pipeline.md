@@ -1,5 +1,9 @@
 # Sprint Report: T1-05 End-to-end ingestion pipeline
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-22](https://linear.app/sdet-it/issue/SDE-22/t1-05-ingestion-pipeline-walker-chunk-embed-store-caching)
 **Started:** 2026-04-30 15:50 (CET)
 **Done:** 2026-04-30 16:00 (CET)

@@ -1,5 +1,9 @@
 # Sprint Report: T1-03 Embedding service - MLX primary + Gemini fallback
 
+> Sprint report autorski. Linear refs (`SDE-XX`) są internal trackingiem
+> i nie są publicznie linkowane.
+
+
 **Linear:** [SDE-20](https://linear.app/sdet-it/issue/SDE-20/t1-03-embedding-service-mlx-primary-gemini-fallback)
 **Started:** 2026-04-30 15:28 (CET)
 **Done:** 2026-04-30 15:38 (CET)
