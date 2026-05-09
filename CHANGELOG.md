@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `_iter_markdown_files`: bare directory names in `--exclude` now match
+  at any depth (gitignore-style). Previously `sdet-brain-cli <path>
+  --exclude node_modules` only dropped `$(pwd)/node_modules` because
+  argparse `type=Path` turns the bare name into a relative `Path` and
+  `resolve()` anchors it to CWD. Real-world impact: ingesting a repo
+  that contained `node_modules/` polluted the corpus with thousands
+  of vendored README chunks (8079 in our brand collection - 71% of
+  total). Absolute paths and relative-with-slashes still resolve as
+  before, so existing callers are unaffected.
+
 Backlog (post-Series #01 publication week):
 
 - VPS deployment with `brand.sdet.it` + HMAC auth + Gemini fallback (`SDE-35`)

@@ -81,14 +81,28 @@ def _iter_markdown_files(
     """Yield ``.md`` files under ``root`` (or just ``root`` itself).
 
     Hidden path parts (anything starting with ``.``) are always
-    skipped. ``exclude_dirs`` lets callers drop sub-trees (e.g. a
-    `v0.4-planning/` folder that should not yet be indexed).
+    skipped. ``exclude_dirs`` accepts two forms:
+
+    - **Subtree paths** (absolute or relative-with-slashes), e.g.
+      ``/abs/v0.4-planning`` or ``./v0.4-planning`` - anything under
+      that resolved path is dropped.
+    - **Bare directory names** with no slash, e.g. ``node_modules``
+      or ``__pycache__`` - every path part with that name matches,
+      regardless of where it appears in the tree (gitignore-style).
     """
-    resolved_excludes = tuple(d.resolve() for d in exclude_dirs)
+    name_excludes: set[str] = set()
+    abs_excludes: list[Path] = []
+    for d in exclude_dirs:
+        if not d.is_absolute() and len(d.parts) == 1:
+            name_excludes.add(d.name)
+        else:
+            abs_excludes.append(d.resolve())
 
     def _is_excluded(path: Path) -> bool:
+        if any(part in name_excludes for part in path.parts):
+            return True
         resolved = path.resolve()
-        for parent in resolved_excludes:
+        for parent in abs_excludes:
             try:
                 resolved.relative_to(parent)
                 return True
