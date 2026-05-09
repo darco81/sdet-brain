@@ -28,6 +28,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/` - example macOS automation that wraps the brain in a
+  launchd-driven daily routine. Three pieces, all optional:
+  - `daily.sh` sequences ingest → digest → health check; sources
+    `~/.config/sdet-brain/{paths,discord}.env`, idempotent re-index.
+  - `digest.py` cold-starts MLX Qwen3-Next-80B-Instruct, scrolls
+    Qdrant for chunks added in the last `SDET_DIGEST_WINDOW_HOURS`
+    (default 24) where `source_type == SDET_DIGEST_SOURCE_TYPE`
+    (default `drafts`), writes a markdown changelog under
+    `~/Documents/sdet-digests/`, and POSTs an embed to Discord (with
+    a `User-Agent` to bypass Cloudflare's 1010). Exits when done so
+    the 80B weights leave RAM.
+  - `healthcheck.sh` pings Qdrant `/readyz`, the server `/health`,
+    and verifies the server daemon is loaded - banner only.
+  - `examples/` ships `paths.env.example`, `discord.env.example`,
+    and a `.plist.example` LaunchAgent template with placeholders.
+  - `scripts/README.md` documents the env-var contract and a
+    `sed`-driven plist install.
+
 ### Fixed
 
 - `_iter_markdown_files`: bare directory names in `--exclude` now match

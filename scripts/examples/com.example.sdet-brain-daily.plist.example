@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example LaunchAgent that runs scripts/daily.sh on weekday mornings.
+
+  To install:
+    1. Copy to ~/Library/LaunchAgents/com.YOURNAME.sdet-brain-daily.plist
+    2. Replace placeholders:
+       - __LABEL__              your unique label, e.g. com.you.sdet-brain-daily
+       - __SDET_BRAIN_DIR__     absolute path to your sdet-brain checkout
+       - __DAEMON_LABEL__       label of your sdet-brain-server LaunchAgent
+                                (the one that runs `uv run sdet-brain-server`)
+    3. Update <Hour>/<Minute> if you don't want 07:30.
+    4. plutil -lint the file, then:
+         launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.YOURNAME.sdet-brain-daily.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>__LABEL__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__SDET_BRAIN_DIR__/scripts/daily.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__SDET_BRAIN_DIR__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/__YOU__</string>
+    <key>SDET_BRAIN_DIR</key>
+    <string>__SDET_BRAIN_DIR__</string>
+    <key>SDET_BRAIN_DAEMON_LABEL</key>
+    <string>__DAEMON_LABEL__</string>
+    <key>QDRANT_URL</key>
+    <string>http://localhost:6333</string>
+    <key>SDET_BRAIN_SERVER_URL</key>
+    <string>http://localhost:8080</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+  </array>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/sdet-brain-daily.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/sdet-brain-daily.err.log</string>
+</dict>
+</plist>
