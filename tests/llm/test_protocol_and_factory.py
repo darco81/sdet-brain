@@ -112,3 +112,24 @@ def test_mlx_provider_health_check_starts_false() -> None:
     provider = MLXLLm(model_name="mlx-community/totally-fake-for-test")
     assert provider.health_check() is False
     assert provider.is_loaded is False
+
+
+def test_settings_expose_default_llm_router_cache_size() -> None:
+    """The new env-driven field defaults to 1 (single resident model)."""
+    from sdet_brain.config import Settings
+
+    assert Settings().llm_router_cache_size == 1
+
+
+def test_get_router_uses_settings_cache_size() -> None:
+    """Factory must propagate ``cache_size`` from ``Settings`` into router."""
+    from sdet_brain.config import Settings
+    from sdet_brain.llm.factory import get_router, reset_router_for_tests
+
+    reset_router_for_tests()
+    cfg = Settings(llm_router_cache_size=3)
+    router = get_router(cfg)
+    try:
+        assert router.cache_size == 3
+    finally:
+        reset_router_for_tests()

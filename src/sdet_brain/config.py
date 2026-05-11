@@ -162,6 +162,16 @@ class Settings(BaseSettings):
         default="mlx-community/Qwen3-Next-80B-A3B-Thinking-4bit",
         description="Reasoning tier (decomposition, judging).",
     )
+    llm_router_cache_size: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "Max concurrently-resident MLX LLM models in the router cache. "
+            "Each Qwen3-Next-80B-4bit weighs ~40 GB; default of 1 caps "
+            "resident weights on a 64 GB Mac. Increase to 2 on hosts with "
+            ">=96 GB unified memory for warm fast+instruct."
+        ),
+    )
 
 
 def parse_path_list(value: str) -> list[str]:
