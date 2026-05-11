@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-05-11 - Memory hygiene + macOS automation
+
+Patch release focused on long-running-process memory behaviour
+plus a shippable example of a launchd-driven daily routine. Two
+production-reproduced memory leaks fixed, one ingestion-correctness
+fix, and one scripts/ ecosystem addition.
+
 ### Added
 
 - `scripts/` - example macOS automation that wraps the brain in a
