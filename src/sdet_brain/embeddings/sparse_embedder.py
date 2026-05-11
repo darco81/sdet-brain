@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import cache
 from threading import Lock
 from typing import Any, Final, Protocol, runtime_checkable
 
@@ -113,6 +114,23 @@ class FastembedBM25:
         return True
 
 
+@cache
+def _build_sparse_embedder(model_name: str) -> FastembedBM25:
+    return FastembedBM25(model_name=model_name)
+
+
 def get_sparse_embedder(model_name: str | None = None) -> FastembedBM25:
-    """Build a :class:`FastembedBM25` honouring optional override."""
-    return FastembedBM25(model_name=model_name or DEFAULT_BM25_MODEL)
+    """Return the process-wide :class:`FastembedBM25` for ``model_name``.
+
+    Cached per resolved model id so every caller - and every
+    module-level ``_SPARSE`` helper across the server - shares one
+    wrapper. Without this, a non-caching factory plus seven
+    independent module singletons spawned a fresh ``FastembedBM25``
+    on each cold tool/route, each allocating its own ONNX session
+    and BM25 vocabulary; production logs showed 27+ such loads in a
+    single 45h process, growing the heap unbounded.
+
+    ``None`` and the configured default resolve to the same cache
+    entry so explicit-vs-implicit callers share the same wrapper.
+    """
+    return _build_sparse_embedder(model_name or DEFAULT_BM25_MODEL)

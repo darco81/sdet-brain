@@ -50,6 +50,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `get_sparse_embedder`: cached per resolved model id so every caller
+  shares one `FastembedBM25` wrapper. Previously the factory built a
+  fresh wrapper on each call, and seven independent module-level
+  `_SPARSE` helpers across the server (tools + routes) each held
+  their own. A long-lived process therefore accumulated one ONNX
+  session and BM25 vocabulary per cold tool/route - production logs
+  from a single 45h run showed 27 `Loading sparse embedder` events
+  and ~49 GB of resident anonymous memory before the kernel pushed
+  the bulk into the compressor and swap. The fix normalises `None`
+  vs the default model id onto one cache entry and adds a regression
+  test that pins the construction count at 1 across 100 factory
+  calls.
 - `_iter_markdown_files`: bare directory names in `--exclude` now match
   at any depth (gitignore-style). Previously `sdet-brain-cli <path>
   --exclude node_modules` only dropped `$(pwd)/node_modules` because
