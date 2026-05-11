@@ -14,7 +14,9 @@ a "model X for queries longer than N tokens" rule, it lives here.
 
 from __future__ import annotations
 
+import gc
 import logging
+from collections import OrderedDict
 from collections.abc import Iterator
 from threading import Lock
 from typing import Final, Literal
@@ -59,17 +61,25 @@ class LLMRouter:
         instruct_model: str = DEFAULT_INSTRUCT_MODEL,
         reasoning_model: str = DEFAULT_REASONING_MODEL,
         enabled: bool = True,
+        cache_size: int = 1,
     ) -> None:
+        if cache_size < 1:
+            raise ValueError("cache_size must be >= 1")
         self._fast_model = fast_model
         self._instruct_model = instruct_model
         self._reasoning_model = reasoning_model
         self._enabled = enabled
-        self._cache: dict[str, ILLM] = {}
+        self._cache_size = cache_size
+        self._cache: OrderedDict[str, ILLM] = OrderedDict()
         self._lock = Lock()
 
     @property
     def enabled(self) -> bool:
         return self._enabled
+
+    @property
+    def cache_size(self) -> int:
+        return self._cache_size
 
     def select_model(self, task: TaskType) -> str:
         """Return the model id appropriate for ``task``.
@@ -88,22 +98,60 @@ class LLMRouter:
         return self._instruct_model
 
     def get(self, task: TaskType) -> ILLM:
-        """Return a cached :class:`ILLM` for ``task``."""
+        """Return a cached :class:`ILLM` for ``task`` with LRU eviction.
+
+        Cache hit touches the entry so the LRU order reflects last
+        use. Cache miss with a full cache evicts the oldest entry
+        and releases its MLX weights via :meth:`_unload` before the
+        new provider is constructed; this keeps unified-memory
+        residency under one model on a 64 GB host by default.
+        """
         model_name = self.select_model(task)
         cached = self._cache.get(model_name)
         if cached is not None:
+            self._cache.move_to_end(model_name)
             return cached
         with self._lock:
             cached = self._cache.get(model_name)
-            if cached is None:
-                logger.info(
-                    "LLMRouter creating provider task=%s model=%s",
-                    task,
-                    model_name,
+            if cached is not None:
+                self._cache.move_to_end(model_name)
+                return cached
+            logger.info(
+                "LLMRouter creating provider task=%s model=%s",
+                task,
+                model_name,
+            )
+            provider: ILLM = MLXLLm(model_name=model_name)
+            if len(self._cache) >= self._cache_size:
+                evicted_name, evicted_provider = self._cache.popitem(
+                    last=False
                 )
-                cached = MLXLLm(model_name=model_name)
-                self._cache[model_name] = cached
-        return cached
+                logger.info(
+                    "LLMRouter evicting model=%s (cache full at %d)",
+                    evicted_name,
+                    self._cache_size,
+                )
+                self._unload(evicted_provider)
+            self._cache[model_name] = provider
+        return provider
+
+    def _unload(self, provider: ILLM) -> None:
+        """Drop provider weights and ask MLX to release its memory pool.
+
+        The router is the only caller, so reaching into ``_model`` /
+        ``_tokenizer`` is cooperative rather than a protocol leak.
+        Non-MLX providers have no weights to release.
+        """
+        if isinstance(provider, MLXLLm):
+            provider._model = None
+            provider._tokenizer = None
+        gc.collect()
+        try:
+            import mlx.core as mx
+
+            mx.clear_cache()
+        except Exception as exc:  # pragma: no cover - depends on MLX runtime
+            logger.warning("MLX clear_cache failed: %s", exc)
 
     # Convenience pass-through methods so callers can use the router
     # itself like an ``ILLM`` for the most common task tiers.

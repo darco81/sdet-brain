@@ -46,6 +46,7 @@ def get_router(settings: Settings | None = None) -> LLMRouter:
                 instruct_model=cfg.llm_model,
                 reasoning_model=cfg.llm_reasoning_model,
                 enabled=cfg.llm_routing_enabled,
+                cache_size=cfg.llm_router_cache_size,
             )
     assert _ROUTER is not None  # noqa: S101 - lock guarantees this
     return _ROUTER
