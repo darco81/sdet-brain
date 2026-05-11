@@ -50,6 +50,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LLMRouter._cache`: now an LRU `OrderedDict` capped by the new
+  `LLM_ROUTER_CACHE_SIZE` env var (default 1). Previously the cache
+  grew without bound; on a 64 GB Mac, warming all three tiers
+  (`fast` 26B + `instruct` 80B + `reasoning` 80B) totals ~93 GB of
+  MLX weights, forcing the kernel into compressor + swap. The new
+  default keeps one model resident at a time and explicitly
+  releases evicted weights via `mlx.core.clear_cache()` plus
+  `gc.collect()`. Hosts with >=96 GB unified memory can set
+  `LLM_ROUTER_CACHE_SIZE=2` to keep fast + one 80B warm. The
+  cold-start cost when a router call lands on an evicted tier is
+  documented in the env-var description so callers can decide.
 - `get_sparse_embedder`: cached per resolved model id so every caller
   shares one `FastembedBM25` wrapper. Previously the factory built a
   fresh wrapper on each call, and seven independent module-level
