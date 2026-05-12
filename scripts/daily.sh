@@ -58,6 +58,26 @@ notify() {
 }
 
 log "=== daily start ==="
+
+# --- Memory guard (avoid OOM-killing the laptop) ---
+# Ingest pulls a second MLX embedder in CLI mode and digest cold-starts
+# a 30B+ LLM. Skip both if the machine can't spare the headroom.
+INGEST_MIN_GB=${INGEST_MIN_GB:-20}
+DIGEST_MIN_GB=${DIGEST_MIN_GB:-30}
+available_gb=$(/usr/bin/vm_stat | /usr/bin/awk '
+  /Pages free/ {f=$3+0}
+  /Pages inactive/ {i=$3+0}
+  /Pages speculative/ {s=$3+0}
+  END {printf "%.1f", (f+i+s)*16384/1073741824}
+')
+log "memory_free=${available_gb}GB ingest_min=${INGEST_MIN_GB}GB digest_min=${DIGEST_MIN_GB}GB"
+mem_int=${available_gb%.*}
+if [ "${mem_int:-0}" -lt "$INGEST_MIN_GB" ]; then
+  log "SKIP daily — only ${available_gb}GB free, need >=${INGEST_MIN_GB}GB for ingest"
+  notify "sdet-brain daily SKIPPED" "$NOW" "low memory: ${available_gb}GB free (need ${INGEST_MIN_GB}GB)" "Basso"
+  exit 0
+fi
+
 chunks_before=$(count_chunks)
 log "chunks_before=${chunks_before:-unknown}"
 
@@ -81,16 +101,35 @@ ingest_failures=0
 
 cd "$SDET_BRAIN_DIR" || { log "FATAL: cd $SDET_BRAIN_DIR failed"; exit 2; }
 
-UV_BIN=${UV_BIN:-/opt/homebrew/bin/uv}
-[ -x "$UV_BIN" ] || UV_BIN=$(/usr/bin/which uv 2>/dev/null || echo uv)
+# Route ingest through the already-running server's POST /ingest. This
+# avoids spawning a second MLX embedder in CLI mode (which doubled the
+# RAM footprint and used to OOM the laptop). The server reuses its
+# loaded embedder and storage handles via FastAPI deps.
+SERVER_URL=${SDET_BRAIN_SERVER_URL:-http://localhost:8080}
 
 for path in "${ALL_PATHS[@]}"; do
   [ -d "$path" ] || { log "skip (not a dir): $path"; continue; }
-  log "ingest: $path"
-  out=$("$UV_BIN" run sdet-brain-cli "$path" --exclude node_modules --exclude __pycache__ 2>&1)
+  log "ingest (HTTP): $path"
+  body=$(/usr/bin/python3 -c "
+import json, sys
+print(json.dumps({
+    'path': sys.argv[1],
+    'exclude_dirs': ['node_modules', '__pycache__', '.claude'],
+}))
+" "$path")
+  out=$(/usr/bin/curl -sS --max-time 1800 \
+    -H 'Content-Type: application/json' \
+    -X POST "$SERVER_URL/ingest" \
+    -d "$body" 2>&1)
   rc=$?
   echo "$out" >> "$LOG"
-  [ $rc -ne 0 ] && { ingest_failures=$((ingest_failures + 1)); log "FAIL rc=$rc on $path"; }
+  if [ $rc -ne 0 ]; then
+    ingest_failures=$((ingest_failures + 1))
+    log "FAIL curl rc=$rc on $path"
+  elif ! echo "$out" | /usr/bin/grep -q '"summary"'; then
+    ingest_failures=$((ingest_failures + 1))
+    log "FAIL non-200 response on $path"
+  fi
 done
 
 chunks_after=$(count_chunks)
@@ -101,16 +140,37 @@ fi
 log "chunks_after=${chunks_after:-unknown} delta=$delta failures=$ingest_failures"
 
 # --- Daily LLM digest (cold-start MLX). Skipped on ingest failure
-#     to avoid noisy alerts on broken state. ---
+#     to avoid noisy alerts on broken state, and skipped on low memory
+#     because the LLM cold-start pulls 10-15 GB.
+UV_BIN=${UV_BIN:-/opt/homebrew/bin/uv}
+[ -x "$UV_BIN" ] || UV_BIN=$(/usr/bin/which uv 2>/dev/null || echo uv)
 digest_rc=0
-if [ $ingest_failures -eq 0 ] && [ -x "$SDET_BRAIN_DIR/scripts/digest.py" ]; then
-  log "running digest.py"
+digest_free_gb=$(/usr/bin/vm_stat | /usr/bin/awk '
+  /Pages free/ {f=$3+0}
+  /Pages inactive/ {i=$3+0}
+  /Pages speculative/ {s=$3+0}
+  END {printf "%.1f", (f+i+s)*16384/1073741824}
+')
+digest_mem_int=${digest_free_gb%.*}
+if [ $ingest_failures -gt 0 ]; then
+  log "skip digest - ingest had failures"
+elif [ "${digest_mem_int:-0}" -lt "$DIGEST_MIN_GB" ]; then
+  log "skip digest - only ${digest_free_gb}GB free, need >=${DIGEST_MIN_GB}GB"
+elif [ -x "$SDET_BRAIN_DIR/scripts/digest.py" ]; then
+  log "running digest.py (free=${digest_free_gb}GB)"
   "$UV_BIN" run "$SDET_BRAIN_DIR/scripts/digest.py" >> "$LOG" 2>&1
   digest_rc=$?
   log "digest_rc=$digest_rc"
-elif [ $ingest_failures -gt 0 ]; then
-  log "skip digest - ingest had failures"
 fi
+
+# --- Auto-restart server to release MLX arena (~tens of GB after large ingest) ---
+# Apple Silicon unified memory + MLX framework holds GPU arena even when
+# inference is idle. Restart drops the arena; model lazy-reloads on next
+# /search or /ingest. See known failure modes #4 in memory note.
+SERVER_LABEL=${SDET_BRAIN_DAEMON_LABEL:-com.darkow.sdet-brain}
+log "auto-restart server $SERVER_LABEL to release MLX arena"
+/bin/launchctl kickstart -k "gui/$(/usr/bin/id -u)/$SERVER_LABEL" >> "$LOG" 2>&1
+sleep 3
 
 # --- Health check banner ---
 "$SDET_BRAIN_DIR/scripts/healthcheck.sh"
