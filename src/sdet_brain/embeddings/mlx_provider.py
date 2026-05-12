@@ -96,21 +96,34 @@ class MLXEmbedder:
             raise EmbeddingError("mlx-embeddings is not installed") from exc
 
         results: list[list[float]] = []
-        for start in range(0, len(texts), self._batch_size):
-            batch = texts[start : start + self._batch_size]
-            output = generate(model, tokenizer, batch)
-            # `generate` returns a transformers-style `BaseModelOutput`;
-            # the dense per-text embedding lives on ``text_embeds`` (shape
-            # ``(batch, vector_size)``). Falling back to
-            # ``last_hidden_state`` mean-pooling would silently produce a
-            # different vector space, so we treat a missing attribute as
-            # an unsupported model.
-            embeddings = getattr(output, "text_embeds", None)
-            if embeddings is None:
-                raise EmbeddingError(
-                    f"MLX model {self._model_name!r} did not return `text_embeds`."
-                )
-            results.extend(embeddings.tolist())
+        try:
+            for start in range(0, len(texts), self._batch_size):
+                batch = texts[start : start + self._batch_size]
+                output = generate(model, tokenizer, batch)
+                # `generate` returns a transformers-style `BaseModelOutput`;
+                # the dense per-text embedding lives on ``text_embeds`` (shape
+                # ``(batch, vector_size)``). Falling back to
+                # ``last_hidden_state`` mean-pooling would silently produce a
+                # different vector space, so we treat a missing attribute as
+                # an unsupported model.
+                embeddings = getattr(output, "text_embeds", None)
+                if embeddings is None:
+                    raise EmbeddingError(
+                        f"MLX model {self._model_name!r} did not return `text_embeds`."
+                    )
+                results.extend(embeddings.tolist())
+        finally:
+            # Release Metal/unified-memory arena that MLX would otherwise
+            # carry between calls. On Apple Silicon long-lived servers
+            # this is what otherwise accumulates as macOS "Compressor"
+            # over 24h of always-on operation. Same pattern as
+            # `llm/router.py` after MLX LLM operations.
+            try:
+                import mlx.core as mx
+
+                mx.clear_cache()
+            except Exception as exc:  # pragma: no cover
+                logger.warning("MLX clear_cache failed: %s", exc)
         if not results:
             return results
 
