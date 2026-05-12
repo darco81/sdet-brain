@@ -21,6 +21,7 @@ class IngestRequest(BaseModel):
     path: Annotated[str, Field(min_length=1)]
     force: bool = False
     batch_size: Annotated[int, Field(ge=1, le=128)] = 32
+    exclude_dirs: list[str] = Field(default_factory=list)
 
 
 class IngestResponse(BaseModel):
@@ -62,5 +63,6 @@ def post_ingest(
         collection=COLLECTION_NAME,
         batch_size=body.batch_size,
         force_reindex=body.force,
+        exclude_dirs=tuple(Path(d) for d in body.exclude_dirs),
     )
     return _to_response(stats)
