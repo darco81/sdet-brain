@@ -353,6 +353,32 @@ def _ingest_document(
     stats.files_processed += 1
 
 
+def maybe_build_ocr_engine(
+    target: Path, settings: Settings
+) -> IOCREngine | None:
+    """Build an OCR engine if ``target`` will need one, else return ``None``.
+
+    Pre-scans the target so markdown-only paths skip OCR backend
+    bootstrap entirely. The first image/PDF encountered triggers
+    :func:`sdet_brain.ocr.factory.get_ocr_engine` which honours the
+    process-wide singleton, so subsequent ingests share weights.
+    """
+    from sdet_brain.ocr.factory import get_ocr_engine
+
+    def _needs_ocr(path: Path) -> bool:
+        return is_image_path(path) or is_pdf_path(path)
+
+    if target.is_file():
+        if _needs_ocr(target):
+            return get_ocr_engine(settings).engine
+        return None
+
+    for candidate in _iter_ingestible_files(target):
+        if _needs_ocr(candidate):
+            return get_ocr_engine(settings).engine
+    return None
+
+
 def _parse_one(
     path: Path,
     *,
