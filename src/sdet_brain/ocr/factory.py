@@ -49,11 +49,22 @@ class OCREngineSelection:
     attempted: tuple[tuple[OCRProvider, str], ...]
 
 
-def _build_mlx_vlm(_settings: Settings, model: str) -> IOCREngine:
-    """Placeholder — replaced in M2 by the real MLX-VLM provider."""
-    raise OCRError(
-        f"MLX-VLM OCR provider not yet implemented (model={model!r}). "
-        "Wire up in M2 (src/sdet_brain/ocr/mlx_vlm_provider.py).",
+def _build_mlx_vlm(settings: Settings, model: str) -> IOCREngine:
+    """Instantiate the MLX-VLM provider with the requested model.
+
+    Returns an unloaded engine — model weights are pulled on the
+    first ``extract_text`` call so factory bootstrap stays cheap.
+    """
+    try:
+        from sdet_brain.ocr.mlx_vlm_provider import MLXVLMOCREngine
+    except ImportError as exc:  # pragma: no cover - defensive
+        raise OCRError(
+            f"MLX-VLM provider module could not be imported (model={model!r}).",
+        ) from exc
+    return MLXVLMOCREngine(
+        model_name=model,
+        default_prompt=settings.ocr_grounding_prompt,
+        quality_min_chars=settings.ocr_quality_min_chars,
     )
 
 
