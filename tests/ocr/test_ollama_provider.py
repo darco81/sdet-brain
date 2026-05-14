@@ -212,3 +212,87 @@ def test_custom_host_strips_trailing_slash() -> None:
         host="http://example.com:11434/",
     )
     assert engine.model_name == "ollama:qwen2.5-vl:32b"
+
+
+def test_trailing_slash_host_produces_single_slash_request_url(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: trailing-slash host must not leak into the request URL."""
+    captured: dict[str, str] = {}
+
+    def fake_post(url: str, *, json: Any, timeout: float) -> httpx.Response:
+        _ = json, timeout
+        captured["url"] = url
+        return _ok_response({"response": "long enough output text here"})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    engine = OllamaOCREngine(
+        model_name="deepseek-ocr",
+        default_prompt="Convert.",
+        quality_min_chars=10,
+        host="http://example.com:11434/",
+    )
+    engine.extract_text(b"img")
+    assert captured["url"] == "http://example.com:11434/api/generate"
+
+
+@pytest.mark.parametrize("status_code", [404, 422, 500, 502])
+def test_extract_text_4xx_5xx_response_raises_ocr_error(
+    monkeypatch: pytest.MonkeyPatch,
+    engine: OllamaOCREngine,
+    status_code: int,
+) -> None:
+    """Production-realistic HTTP failures (model-not-found 404, bad
+    gateway 502, etc.) should raise OCRError with the model name in
+    the message."""
+    request = httpx.Request("POST", "http://localhost:11434/api/generate")
+
+    def fake_post(*_a: Any, **_kw: Any) -> httpx.Response:
+        return httpx.Response(status_code=status_code, request=request)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(OCRError) as excinfo:
+        engine.extract_text(b"img")
+    assert "deepseek-ocr" in str(excinfo.value)
+
+
+def test_extract_text_non_json_response_raises_ocr_error(
+    monkeypatch: pytest.MonkeyPatch, engine: OllamaOCREngine
+) -> None:
+    """When Ollama sits behind a reverse proxy that returns HTML error
+    pages, the JSON decode fails — surface as OCRError, not raw ValueError."""
+
+    def fake_post(*_a: Any, **_kw: Any) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            content=b"<html><body>504 gateway</body></html>",
+            request=httpx.Request("POST", "http://localhost:11434/api/generate"),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(OCRError) as excinfo:
+        engine.extract_text(b"img")
+    assert "non-JSON" in str(excinfo.value)
+
+
+def test_health_check_logs_exception_detail(
+    monkeypatch: pytest.MonkeyPatch,
+    engine: OllamaOCREngine,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Diagnostic improvement: log the exception itself, not just the URL,
+    so the operator can tell ConnectError from ProxyError from 5xx."""
+    import logging
+
+    def fake_get(*_a: Any, **_kw: Any) -> httpx.Response:
+        raise httpx.ConnectError("Connection refused — daemon down?")
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    with caplog.at_level(logging.WARNING):
+        result = engine.health_check()
+
+    assert result is False
+    # The exception message must appear in the log so triage is possible.
+    assert any("daemon down" in rec.message for rec in caplog.records)

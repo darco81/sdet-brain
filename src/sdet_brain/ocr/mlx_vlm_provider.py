@@ -100,7 +100,16 @@ class MLXVLMOCREngine:
         ):
             return self._model, self._processor, self._config
         with self._lock:
-            if self._model is None:
+            # Re-check all three under lock: a half-built engine (e.g.
+            # _load_model raised after model + processor loaded but
+            # before config returned) leaves _model set while _config
+            # is None. Checking only _model would let the next call
+            # short-circuit on a partial state.
+            if (
+                self._model is None
+                or self._processor is None
+                or self._config is None
+            ):
                 try:
                     self._model, self._processor, self._config = self._load_model()
                 except ImportError as exc:
@@ -161,10 +170,23 @@ class MLXVLMOCREngine:
                 # embeddings/mlx_provider.py:120-126.
                 try:
                     import mlx.core as mx
-
+                except ImportError:
+                    # A partial install (mlx_vlm present, mlx.core
+                    # missing) is a real config error — let it bubble
+                    # so the user knows their venv is broken.
+                    logger.exception(
+                        "mlx.core missing — MLX install is broken, re-run `uv sync`",
+                    )
+                    raise
+                try:
                     mx.clear_cache()
-                except Exception as exc:  # pragma: no cover - safety net
-                    logger.warning("MLX clear_cache failed: %s", exc)
+                except RuntimeError as exc:  # pragma: no cover - documented MLX failure
+                    # Documented MLX failure mode — Metal arena likely
+                    # leaked but inference already completed.
+                    logger.warning(
+                        "MLX clear_cache failed (Metal arena likely leaked): %s",
+                        exc,
+                    )
             elapsed = time.time() - t0
 
         # mlx-vlm 0.5.x returns either ``GenerationResult`` or raw ``str``.

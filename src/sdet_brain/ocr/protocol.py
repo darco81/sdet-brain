@@ -63,8 +63,18 @@ class IOCREngine(Protocol):
         ...
 
 
-class OCRError(RuntimeError):
-    """Raised when an OCR provider cannot produce text."""
+class OCRError(Exception):
+    """Raised when an OCR provider cannot produce text.
+
+    Providers MUST wrap their transport-layer errors (``httpx.ConnectError``,
+    ``ImportError`` from missing optional deps, etc.) into ``OCRError``
+    before raising — the factory's fallback chain catches ``OCRError``
+    only and lets unrelated exceptions bubble. See
+    :func:`sdet_brain.ocr.factory._try_build`.
+
+    Inherits from ``Exception`` (not ``RuntimeError``) because OCR
+    failure is a domain error, not an interpreter-classification gap.
+    """
 
 
 class OCRTimeoutError(OCRError):

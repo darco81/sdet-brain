@@ -73,15 +73,32 @@ class OllamaOCREngine:
         return f"ollama:{self._model_tag}"
 
     def health_check(self) -> bool:
-        """Verify the Ollama daemon answers at ``{host}/api/tags``."""
+        """Verify the Ollama daemon answers at ``{host}/api/tags``.
+
+        Logs the exception itself (not just the URL) so the operator
+        can distinguish "daemon down" (``ConnectError``) from
+        "wrong proxy" (``ProxyError``) from "daemon up, returned 5xx"
+        (``HTTPStatusError``).
+        """
         try:
             response = httpx.get(
                 f"{self._host}/api/tags", timeout=_HEALTH_TIMEOUT_S,
             )
             response.raise_for_status()
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             logger.warning(
-                "Ollama health check failed at %s/api/tags", self._host,
+                "Ollama health check failed at %s/api/tags: %s",
+                self._host,
+                exc,
+            )
+            return False
+        except httpx.InvalidURL as exc:
+            # InvalidURL is a subclass of Exception, NOT HTTPError —
+            # a malformed OCR_OLLAMA_HOST env var would otherwise crash
+            # the factory boot. Surface as a normal health failure so
+            # the chain can fall back.
+            logger.warning(
+                "Ollama host %r is not a valid URL: %s", self._host, exc,
             )
             return False
         return True

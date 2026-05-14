@@ -35,8 +35,13 @@ def ingest_image(
 ) -> str:
     """Ingest a single image / PDF file (or a directory of them).
 
-    Markdown files inside the target are silently ignored — use
-    ``ingest_path`` for mixed corpora.
+    For a single-file target, the path MUST be an image or PDF —
+    pointing at a ``.md`` raises ``ToolError`` (use ``ingest_path``
+    for markdown). For a directory target, only image and PDF
+    descendants are processed; any markdown alongside is left to
+    ``ingest_path``. A directory with NO image/PDF files raises
+    ``ToolError`` ("nothing to OCR") so callers don't burn the
+    OCR-engine boot for a no-op walk.
     """
     target = Path(path)
     if not target.exists():

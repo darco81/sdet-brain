@@ -153,3 +153,66 @@ def test_win_profile_no_qwen_fallback_skips_tertiary(
     assert "deepseek-ocr" in msg
     assert "mlx-vlm" in msg
     assert "qwen" not in msg
+
+
+def test_ocr_error_inherits_from_exception_not_runtime() -> None:
+    """Regression: OCRError is a domain error, not an interpreter error.
+
+    `factory._try_build` plus future provider transport-wrapping
+    rely on the `OCRError` taxonomy being distinct from
+    `RuntimeError`. Inheriting from `Exception` keeps the contract
+    explicit.
+    """
+    err = OCRError("boom")
+    assert isinstance(err, Exception)
+    assert not isinstance(err, RuntimeError)
+
+
+def test_builder_unexpected_exception_still_falls_back(
+    patched_builders: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unexpected exception in a builder (e.g. ConnectionError, OSError)
+    must NOT crash the chain — `_try_build` logs and tries the next link."""
+    def boom_builder(_: Settings, _model: str) -> _StubOCREngine:
+        raise ConnectionError("simulated network blip during builder init")
+
+    monkeypatch.setitem(factory_module._BUILDERS, "mlx-vlm", boom_builder)
+    selection = get_ocr_engine(_settings("mlx-vlm"))
+    # mlx-vlm builder blew up with ConnectionError → fell back to ollama
+    assert selection.provider == "ollama"
+    assert selection.fell_back is True
+
+
+def test_health_check_exception_treated_as_unhealthy(
+    patched_builders: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If health_check() itself raises, the engine is treated as unhealthy
+    rather than crashing the factory."""
+    def fragile_builder(_: Settings, model: str) -> _StubOCREngine:
+        engine = _StubOCREngine(model_name=model, healthy=True)
+
+        def boom_check() -> bool:
+            raise OSError("simulated transport hiccup in health_check")
+
+        engine.health_check = boom_check  # type: ignore[method-assign]
+        return engine
+
+    monkeypatch.setitem(factory_module._BUILDERS, "mlx-vlm", fragile_builder)
+    selection = get_ocr_engine(_settings("mlx-vlm"))
+    assert selection.provider == "ollama"  # fell back to next link
+    assert selection.fell_back is True
+
+
+def test_reset_ocr_engine_invalidates_cache(
+    patched_builders: dict[str, Any],
+) -> None:
+    """Explicit coverage that reset_ocr_engine forces a fresh chain walk."""
+    first = get_ocr_engine(_settings("mlx-vlm"))
+    second = get_ocr_engine(_settings("mlx-vlm"))
+    assert first is second  # cached
+
+    reset_ocr_engine()
+    patched_builders["mlx_vlm_healthy"] = False
+    third = get_ocr_engine(_settings("mlx-vlm"))
+    assert third is not first  # cache invalidated
+    assert third.provider == "ollama"  # picks up new health state
