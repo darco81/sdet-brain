@@ -28,6 +28,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-14 - Image / PDF ingestion via DeepSeek-OCR
+
+Receipts, invoices, whiteboard photos, screenshots, and multi-page
+PDFs now flow through the same chunker → embedder → Qdrant path as
+markdown. The new `ingest_image` MCP tool drives a layered fallback
+chain — MLX-VLM DeepSeek-OCR (primary, ~3 s/img on M-series), Ollama
+DeepSeek-OCR (cross-platform secondary), Ollama Qwen2.5-VL (~40 s/img
+heavyweight tertiary) — so failures degrade gracefully instead of
+breaking ingest. The existing `ingest_path` tool auto-detects content
+type and routes accordingly; markdown-only paths skip the OCR boot
+entirely.
+
+### Added
+
+- `src/sdet_brain/ocr/` - new module with `IOCREngine` protocol,
+  `OCRResult` dataclass, `OCRError` / `OCRTimeoutError` / `OCRQualityError`
+  hierarchy, the factory walking primary → secondary → tertiary on
+  `health_check()` failure, and the shared `prompts` helpers
+  (DeepSeek grounding-token strip + repeat-line dedup + quality
+  heuristic).
+- `MLXVLMOCREngine` - Apple Silicon OCR via `mlx-vlm` with
+  DeepSeek-OCR-2-6bit. Lazy model load, MLX arena hygiene
+  (`mx.clear_cache()` in finally), temp-file workflow so the engine
+  sees a stable PNG regardless of input format.
+- `OllamaOCREngine` - cross-platform OCR over the Ollama HTTP API.
+  Base64-encodes the image, honours `OCR_KEEP_ALIVE` so idle weights
+  unload on memory-constrained hosts (Win 4 GB VRAM), separate
+  `OCRTimeoutError` on `httpx.ReadTimeout`.
+- `src/sdet_brain/ingestion/image_parser.py` - `parse_image` and
+  `parse_pdf` with EXIF transpose, HEIC support (pillow-heif), resize
+  to `OCR_MAX_IMAGE_DIM`, PDF page render via `pypdfium2`. Page
+  boundaries survive in chunker output as `## Page N` markdown
+  headings; per-chunk page tracking deferred to v0.6.1.
+- `ingest_image` MCP tool with an explicit format list in its
+  docstring so Claude picks the right tool when a JPEG appears
+  (edge case #15). `ingest_path` gains parallel auto-detect.
+- 12 new `ocr_*` settings in `Settings` with field-level Pydantic
+  descriptions: provider, model ids (MLX-VLM + Ollama primary +
+  Ollama fallback), timeouts, image/PDF caps, keep-alive, quality
+  threshold, grounding + general prompts, PII-scrub feature flag
+  (off in MVP, hook reserved for v0.6.1).
+- Pipeline rename: `_iter_markdown_files` → `_iter_ingestible_files`
+  (markdown + image + pdf suffix set). `ingest_path` gains
+  `ocr_engine=` and `settings=` parameters; the new
+  `maybe_build_ocr_engine` helper pre-scans the target so
+  markdown-only paths pay no OCR-bootstrap cost.
+
+### Tests
+
+- **293 tests** passing (was 213 in v0.5.3, +80 in this release):
+  factory chain fallback + singleton identity, prompts pure-fn
+  coverage, MLXVLMOCREngine with monkeypatched `mlx_vlm`,
+  OllamaOCREngine with monkeypatched `httpx`, image / PDF parser
+  with fake `pypdfium2` + `_FakeOCREngine`, ingestible-suffix
+  expansion, ingest tool input validation.
+- mypy `--strict` clean across 78 source files (was 73). ruff clean.
+
+### Dependencies
+
+- `mlx-vlm>=0.5.0 ; sys_platform == 'darwin' and platform_machine == 'arm64'`
+- `pillow>=10.0.0` (was transitive)
+- `pillow-heif>=0.17.0` for iPhone HEIC photos
+- `pypdfium2>=4.30.0` for PDF page rendering (no Poppler binary
+  required — ships its native lib)
+
+### Edge cases mitigated (per plan §15)
+
+EXIF rotation on phone photos, HEIC auto-registration, PDF >20 pages
+rejected, image >20 MB rejected, concurrent-ingest race via
+`threading.Lock` in factory singleton, model-change idempotency via
+file-bytes `content_hash`, watcher excludes images (markdown-only
+opt-in deferred to v0.7.0).
+
+### Backlog (post-0.6.0)
+
+- **0.6.1**: PII scrub via local NER (Polish-specific entities —
+  NIP, kwoty, dane osobowe). Per-chunk `page_number` in payload.
+- **0.7.0**: Qwen3-VL MLX variant when `mlx-community` ships it
+  (replaces Ollama Qwen fallback). Watcher integration with explicit
+  opt-in flag `WATCH_INCLUDE_IMAGES=true`.
+- **0.2.0-win.0** sister release on `sdet-brain-win` — Ollama-only
+  stack, 4 GB VRAM-constrained, no Qwen fallback.
+
 ## [0.5.3] - 2026-05-11 - Memory hygiene + macOS automation
 
 Patch release focused on long-running-process memory behaviour

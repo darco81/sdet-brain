@@ -1,6 +1,6 @@
 [project]
 name = "sdet-brain"
-version = "0.5.3"
+version = "0.6.0"
 description = "Persistent RAG for a personal Markdown corpus - shared context across Claude clients via MCP."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -22,8 +22,12 @@ dependencies = [
     "tenacity>=9.0.0",
     "tqdm>=4.66.0",
     "mlx-embeddings>=0.0.3 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mlx-vlm>=0.5.0 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "fastembed>=0.4",
     "prompt-toolkit>=3.0.52",
+    "pillow>=10.0.0",
+    "pillow-heif>=0.17.0",
+    "pypdfium2>=4.30.0",
 ]
 
 [project.optional-dependencies]
@@ -77,7 +81,15 @@ strict_equality = true
 extra_checks = true
 
 [[tool.mypy.overrides]]
-module = ["frontmatter.*", "watchdog.*", "mlx.*", "mlx_embeddings.*"]
+module = [
+    "frontmatter.*",
+    "watchdog.*",
+    "mlx.*",
+    "mlx_embeddings.*",
+    "mlx_vlm.*",
+    "pillow_heif.*",
+    "pypdfium2.*",
+]
 ignore_missing_imports = true
 
 [tool.ruff]

@@ -9,8 +9,17 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from sdet_brain.embeddings.protocol import IEmbedder
-from sdet_brain.ingestion.pipeline import IngestStats, ingest_path
-from sdet_brain.server.dependencies import require_embedder, require_storage
+from sdet_brain.ingestion.pipeline import (
+    IngestStats,
+    ingest_path,
+    maybe_build_ocr_engine,
+)
+from sdet_brain.server.dependencies import (
+    AppState,
+    get_state,
+    require_embedder,
+    require_storage,
+)
 from sdet_brain.storage.collections import COLLECTION_NAME
 from sdet_brain.storage.qdrant_client import QdrantStorage
 
@@ -49,6 +58,7 @@ def post_ingest(
     body: Annotated[IngestRequest, Body()],
     storage: QdrantStorage = Depends(require_storage),
     embedder: IEmbedder = Depends(require_embedder),
+    state: AppState = Depends(get_state),
 ) -> IngestResponse:
     target = Path(body.path)
     if not target.exists():
@@ -56,6 +66,7 @@ def post_ingest(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Path does not exist: {target}",
         )
+    ocr_engine = maybe_build_ocr_engine(target, state.settings)
     stats = ingest_path(
         target,
         storage,
@@ -64,5 +75,7 @@ def post_ingest(
         batch_size=body.batch_size,
         force_reindex=body.force,
         exclude_dirs=tuple(Path(d) for d in body.exclude_dirs),
+        ocr_engine=ocr_engine,
+        settings=state.settings,
     )
     return _to_response(stats)

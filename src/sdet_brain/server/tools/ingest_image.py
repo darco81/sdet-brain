@@ -1,9 +1,16 @@
-"""`ingest_path` MCP tool implementation."""
+"""`ingest_image` MCP tool — explicit image / PDF ingestion path.
+
+Sister tool to ``ingest_path`` that exists solely to make Claude pick
+the right one (edge case #15 in the v0.6.0 plan). The docstring on the
+registered tool lists supported formats explicitly so the agent doesn't
+shove a JPEG into the markdown-only ``ingest_path`` slot.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from sdet_brain.ingestion.image_parser import is_image_path, is_pdf_path
 from sdet_brain.ingestion.pipeline import (
     ingest_path as run_ingest,
 )
@@ -19,26 +26,39 @@ from sdet_brain.server.tools._helpers import (
 )
 
 
-def ingest_path(
+def ingest_image(
     state: AppState,
     *,
     path: str,
     force: bool = False,
     collection: str | None = None,
 ) -> str:
-    """Re-ingest a file or directory and return a summary string.
+    """Ingest a single image / PDF file (or a directory of them).
 
-    Supports markdown (``.md``), images (``.jpg``/``.png``/``.heic``/...)
-    and PDFs (``.pdf``). Image and PDF files trigger OCR via the
-    configured provider chain (MLX-VLM → Ollama DeepSeek → Ollama Qwen
-    on Mac; Ollama-only on Win).
+    Markdown files inside the target are silently ignored — use
+    ``ingest_path`` for mixed corpora.
     """
     target = Path(path)
     if not target.exists():
         raise ToolError(f"path does not exist: {target}")
+
+    if target.is_file() and not (is_image_path(target) or is_pdf_path(target)):
+        raise ToolError(
+            f"`{target}` is not an image or PDF — use `ingest_path` for "
+            "markdown files.",
+        )
+
+    # Guard against the wrong-tool-for-the-job mistake before paying for
+    # infra checks — user-error diagnostics first, then dependencies.
+    ocr_engine = maybe_build_ocr_engine(target, state.settings)
+    if ocr_engine is None:
+        raise ToolError(
+            f"No image or PDF files under `{target}` — nothing to OCR.",
+        )
+
     storage = require_storage(state)
     embedder = require_embedder(state)
-    ocr_engine = maybe_build_ocr_engine(target, state.settings)
+
     stats = run_ingest(
         target,
         storage,
@@ -48,8 +68,9 @@ def ingest_path(
         ocr_engine=ocr_engine,
         settings=state.settings,
     )
+
     lines = [
-        f"# Ingest summary for `{target}`",
+        f"# Image/PDF ingest summary for `{target}`",
         "",
         f"- Files processed: **{stats.files_processed}**",
         f"- Files skipped (cache): **{stats.files_skipped}**",

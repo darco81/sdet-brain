@@ -34,6 +34,14 @@ from sdet_brain.embeddings.sparse_embedder import (
 )
 from sdet_brain.ingestion.document_parser import parse_markdown
 from sdet_brain.ingestion.frontmatter_schema import to_payload_fields
+from sdet_brain.ingestion.image_parser import (
+    IMAGE_SUFFIXES,
+    PDF_SUFFIXES,
+    is_image_path,
+    is_pdf_path,
+    parse_image,
+    parse_pdf,
+)
 from sdet_brain.ingestion.models import Chunk, ParsedDocument
 from sdet_brain.ingestion.source_classifier import SourceConfig, classify_source
 from sdet_brain.storage.collections import (
@@ -44,7 +52,9 @@ from sdet_brain.storage.collections import (
 )
 
 if TYPE_CHECKING:
+    from sdet_brain.config import Settings
     from sdet_brain.embeddings.protocol import IEmbedder
+    from sdet_brain.ocr.protocol import IOCREngine
     from sdet_brain.storage.qdrant_client import QdrantStorage
 
 logger = logging.getLogger(__name__)
@@ -52,6 +62,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_BATCH_SIZE: Final[int] = 32
 CHUNK_NAMESPACE: Final[uuid.UUID] = uuid.uuid5(
     uuid.NAMESPACE_URL, "https://sdet-brain/chunks"
+)
+INGESTIBLE_SUFFIXES: Final[frozenset[str]] = (
+    frozenset({".md"}) | IMAGE_SUFFIXES | PDF_SUFFIXES
 )
 
 
@@ -75,10 +88,14 @@ class IngestStats:
         )
 
 
-def _iter_markdown_files(
+def _iter_ingestible_files(
     root: Path, exclude_dirs: tuple[Path, ...] = ()
 ) -> Iterator[Path]:
-    """Yield ``.md`` files under ``root`` (or just ``root`` itself).
+    """Yield ingestible files under ``root`` (or just ``root`` itself).
+
+    Ingestible suffixes (case-insensitive): ``.md`` plus everything in
+    :data:`sdet_brain.ingestion.image_parser.IMAGE_SUFFIXES` plus
+    :data:`PDF_SUFFIXES` — markdown, images, PDFs.
 
     Hidden path parts (anything starting with ``.``) are always
     skipped. ``exclude_dirs`` accepts two forms:
@@ -111,10 +128,14 @@ def _iter_markdown_files(
         return False
 
     if root.is_file():
-        if root.suffix.lower() == ".md" and not _is_excluded(root):
+        if root.suffix.lower() in INGESTIBLE_SUFFIXES and not _is_excluded(root):
             yield root
         return
-    for path in sorted(root.rglob("*.md")):
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in INGESTIBLE_SUFFIXES:
+            continue
         if any(part.startswith(".") for part in path.parts):
             continue
         if _is_excluded(path):
@@ -332,6 +353,51 @@ def _ingest_document(
     stats.files_processed += 1
 
 
+def maybe_build_ocr_engine(
+    target: Path, settings: Settings
+) -> IOCREngine | None:
+    """Build an OCR engine if ``target`` will need one, else return ``None``.
+
+    Pre-scans the target so markdown-only paths skip OCR backend
+    bootstrap entirely. The first image/PDF encountered triggers
+    :func:`sdet_brain.ocr.factory.get_ocr_engine` which honours the
+    process-wide singleton, so subsequent ingests share weights.
+    """
+    from sdet_brain.ocr.factory import get_ocr_engine
+
+    def _needs_ocr(path: Path) -> bool:
+        return is_image_path(path) or is_pdf_path(path)
+
+    if target.is_file():
+        if _needs_ocr(target):
+            return get_ocr_engine(settings).engine
+        return None
+
+    for candidate in _iter_ingestible_files(target):
+        if _needs_ocr(candidate):
+            return get_ocr_engine(settings).engine
+    return None
+
+
+def _parse_one(
+    path: Path,
+    *,
+    ocr_engine: IOCREngine | None,
+    settings: Settings | None,
+) -> ParsedDocument:
+    """Dispatch to the right parser based on filesystem suffix."""
+    if is_image_path(path) or is_pdf_path(path):
+        if ocr_engine is None or settings is None:
+            raise RuntimeError(
+                f"OCR engine + settings required to ingest {path.suffix} files; "
+                "pass `ocr_engine=` and `settings=` to ``ingest_path``.",
+            )
+        if is_pdf_path(path):
+            return parse_pdf(path, ocr_engine=ocr_engine, settings=settings)
+        return parse_image(path, ocr_engine=ocr_engine, settings=settings)
+    return parse_markdown(path)
+
+
 def ingest_path(
     path: Path,
     storage: QdrantStorage,
@@ -344,8 +410,15 @@ def ingest_path(
     exclude_dirs: tuple[Path, ...] = (),
     progress: Iterator[Path] | None = None,
     sparse_embedder: ISparseEmbedder | None = None,
+    ocr_engine: IOCREngine | None = None,
+    settings: Settings | None = None,
 ) -> IngestStats:
-    """Walk ``path`` and ingest every Markdown file beneath it.
+    """Walk ``path`` and ingest every ingestible file beneath it.
+
+    Ingestible suffixes: ``.md`` (markdown), ``.jpg``/``.png``/``.heic``
+    /... (image OCR), ``.pdf`` (PDF page OCR). Pass ``ocr_engine`` +
+    ``settings`` to enable image/PDF ingestion; without them, image and
+    PDF files surface as per-file errors in :class:`IngestStats`.
 
     Parameters
     ----------
@@ -369,10 +442,17 @@ def ingest_path(
         Optional iterable wrapper (e.g. `tqdm`) used for visible
         progress reporting. The CLI passes `tqdm` here; tests pass
         ``None``.
+    ocr_engine:
+        Configured OCR engine. Required if ``path`` contains any image
+        or PDF file; ignored when only markdown is encountered.
+    settings:
+        :class:`Settings` instance carrying ``ocr_*`` budgets (image
+        size cap, PDF page cap, resize target). Required alongside
+        ``ocr_engine``.
     """
     config = source_config or SourceConfig()
     sparse = sparse_embedder if sparse_embedder is not None else get_sparse_embedder()
-    files = list(_iter_markdown_files(path, exclude_dirs=exclude_dirs))
+    files = list(_iter_ingestible_files(path, exclude_dirs=exclude_dirs))
     iterator: Iterator[Path] = progress if progress is not None else iter(files)
 
     # Single batched cache-check: load every existing content_hash for
@@ -388,8 +468,15 @@ def ingest_path(
     stats = IngestStats()
     for file_path in iterator:
         try:
-            document = parse_markdown(file_path)
-            source_type = classify_source(file_path, config)
+            document = _parse_one(
+                file_path, ocr_engine=ocr_engine, settings=settings,
+            )
+            # OCR documents take a distinct source_type so search can filter
+            # them out / target them specifically.
+            if is_image_path(file_path) or is_pdf_path(file_path):
+                source_type = "image-ocr"
+            else:
+                source_type = classify_source(file_path, config)
             cached = cached_hashes.get(str(file_path))
             _ingest_document(
                 document,
