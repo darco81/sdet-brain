@@ -169,12 +169,13 @@ def test_extract_text_singleton_load_called_once(
 
 
 def test_health_check_returns_true_when_mlx_vlm_importable(
-    engine: MLXVLMOCREngine,
+    monkeypatch: pytest.MonkeyPatch, engine: MLXVLMOCREngine
 ) -> None:
-    # mlx_vlm is in deps under the darwin/arm64 marker and `uv sync` puts
-    # it in this venv; on other platforms the test still passes because
-    # the import statement inside health_check would just return True
-    # only on real Apple Silicon — here we assert the happy path.
+    # Inject a fake mlx_vlm module so the test passes regardless of
+    # whether the real package is installed (cross-platform: Win CI
+    # doesn't have mlx_vlm; we still want this test to assert the
+    # contract "health_check returns True when the module exists").
+    monkeypatch.setitem(sys.modules, "mlx_vlm", types.ModuleType("mlx_vlm"))
     assert engine.health_check() is True
 
 

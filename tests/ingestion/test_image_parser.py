@@ -249,3 +249,69 @@ def test_is_pdf_path_case_insensitive() -> None:
 
 def test_suffix_sets_are_disjoint() -> None:
     assert not (IMAGE_SUFFIXES & PDF_SUFFIXES)
+
+
+# --- v0.6.1 hardening: image-mode coverage + PIL exception translation ----
+
+
+def _make_image(path: Path, *, mode: str, size: tuple[int, int] = (50, 50)) -> None:
+    """Write a tiny image preserving the requested PIL mode."""
+    if mode == "RGBA":
+        img = Image.new("RGBA", size, (200, 100, 50, 128))  # semi-transparent
+        img.save(path, format="PNG")
+    elif mode == "LA":
+        img = Image.new("LA", size, (128, 200))
+        img.save(path, format="PNG")
+    elif mode == "P":
+        # Palette mode with explicit transparency.
+        img = Image.new("P", size, 0)
+        img.info["transparency"] = 0
+        img.save(path, format="PNG")
+    elif mode == "CMYK":
+        # PNG can't store CMYK natively; JPEG can.
+        img = Image.new("CMYK", size, (50, 100, 200, 30))
+        img.save(path, format="JPEG")
+    else:
+        img = Image.new(mode, size)
+        img.save(path, format="PNG")
+
+
+@pytest.mark.parametrize("mode", ["RGBA", "LA", "P", "CMYK"])
+def test_parse_image_handles_non_rgb_modes(tmp_path: Path, mode: str) -> None:
+    """Bug-prevention: iPhone screenshots (RGBA), palette PNGs, scanner CMYK
+    must OCR without losing data to a black-alpha void."""
+    path = tmp_path / f"img_{mode.lower()}.png"
+    _make_image(path, mode=mode)
+    engine = _FakeOCREngine()
+
+    parse_image(path, ocr_engine=engine, settings=Settings())
+
+    # Verify engine received valid bytes — would crash earlier if mode failed.
+    assert len(engine.calls) == 1
+    with Image.open(io.BytesIO(engine.calls[0])) as decoded:
+        # Normalized to RGB (or L for monochrome inputs); never RGBA/P/CMYK.
+        assert decoded.mode in {"RGB", "L"}
+
+
+def test_parse_image_unidentified_format_raises_ocr_error(tmp_path: Path) -> None:
+    """A non-image file (e.g. truncated bytes) gets a clear OCRError
+    with actionable wording instead of a raw PIL UnidentifiedImageError."""
+    path = tmp_path / "not-an-image.png"
+    path.write_bytes(b"this is not a real PNG")
+
+    with pytest.raises(OCRError, match="unsupported format or corrupt file"):
+        parse_image(path, ocr_engine=_FakeOCREngine(), settings=Settings())
+
+
+def test_parse_pdf_zero_page_raises_ocr_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Edge case: pypdfium2 returns a 0-page document → must raise
+    a clear OCRError instead of a confusing TypeError on
+    ``last_result.model``."""
+    path = tmp_path / "empty.pdf"
+    path.write_bytes(b"%PDF fake")
+    _patch_pdfium(monkeypatch, pages=0)
+
+    with pytest.raises(OCRError, match="appears empty"):
+        parse_pdf(path, ocr_engine=_FakeOCREngine(), settings=Settings())
