@@ -270,13 +270,13 @@ Pre-shipped: `voice-check`, `series-status`, `decision-history`,
 `~/.sdet-brain/templates/<name>.yaml` and override the shipped ones
 on name collision.
 
-### MCP tools (11)
+### MCP tools (12)
 
 Available to Claude Desktop / Claude Code / OpenCode / any MCP-aware
 client over stdio, SSE, or streamable HTTP.
 
-**Core (5)** - `ping`, `search`, `ingest_path`, `list_sources`,
-`get_chunk_neighbors`.
+**Core (6)** - `ping`, `search`, `ingest_path`, `ingest_image` (image
+/ PDF OCR — new in v0.6.0), `list_sources`, `get_chunk_neighbors`.
 
 **Domain (5)** - `search_voice_samples`, `search_smaczki`,
 `search_decisions`, `list_articles_by_status`,
@@ -294,10 +294,35 @@ keep call patterns predictable. Inspect the catalogue with
 
 ## How to ingest your corpus
 
-The pipeline walks Markdown files, parses frontmatter, chunks them
-semantically, embeds the chunks, and upserts them into Qdrant. Re-runs
-are idempotent: files whose `content_hash` has not changed are
-skipped.
+The pipeline walks ingestible files (markdown + image + PDF), parses
+each appropriately, chunks them semantically, embeds the chunks, and
+upserts them into Qdrant. Re-runs are idempotent: files whose
+`content_hash` has not changed are skipped.
+
+### Image / PDF OCR (v0.6.0)
+
+Receipts, invoices, whiteboard photos, screenshots, and multi-page
+PDFs are routed through an OCR provider chain instead of the
+markdown parser. Supported suffixes: `.jpg` / `.jpeg`, `.png`,
+`.webp`, `.heic` / `.heif` (iPhone photos), `.bmp`, `.tiff` /
+`.tif`, `.pdf`.
+
+The default provider chain on Mac flagship:
+
+1. **MLX-VLM + DeepSeek-OCR-2-6bit** - primary, ~3 s/img on M5 Pro
+2. **Ollama + deepseek-ocr** - secondary, same model different backend
+3. **Ollama + qwen2.5-vl:32b** - tertiary, multilingual heavyweight
+
+On health-check failure the factory walks down the chain
+transparently. Set `OCR_OLLAMA_FALLBACK_MODEL=` to disable the qwen
+tertiary on memory-constrained hosts (Win 4 GB VRAM).
+
+```bash
+# CLI / REST / MCP all auto-detect by suffix:
+uv run sdet-brain-cli /path/to/receipts/scan.pdf
+uv run sdet-brain-cli /path/to/notes-and-photos  # mixed corpus
+```
+
 
 ```bash
 # 1. Make sure Qdrant is running and the collection exists.
