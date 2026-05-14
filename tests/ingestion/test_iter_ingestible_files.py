@@ -44,7 +44,7 @@ def test_bare_name_exclude_matches_at_any_depth(tmp_path: Path) -> None:
     _touch(tmp_path / "deep" / "a" / "b" / "node_modules" / "x.md")
 
     found = sorted(
-        str(p.relative_to(tmp_path))
+        p.relative_to(tmp_path).as_posix()
         for p in _iter_ingestible_files(tmp_path, exclude_dirs=(Path("node_modules"),))
     )
 
@@ -57,7 +57,7 @@ def test_absolute_exclude_drops_only_matching_subtree(tmp_path: Path) -> None:
     _touch(tmp_path / "deep" / "drop" / "y.md")  # different subtree
 
     found = sorted(
-        str(p.relative_to(tmp_path))
+        p.relative_to(tmp_path).as_posix()
         for p in _iter_ingestible_files(
             tmp_path, exclude_dirs=(tmp_path / "drop",)
         )
@@ -73,7 +73,7 @@ def test_mixing_bare_names_and_absolute_paths(tmp_path: Path) -> None:
     _touch(tmp_path / "nested" / "node_modules" / "z.md")
 
     found = sorted(
-        str(p.relative_to(tmp_path))
+        p.relative_to(tmp_path).as_posix()
         for p in _iter_ingestible_files(
             tmp_path,
             exclude_dirs=(Path("node_modules"), tmp_path / "wip"),
