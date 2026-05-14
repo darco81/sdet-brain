@@ -143,7 +143,29 @@ def _try_build(
             exc,
         )
         return None
-    if not candidate.health_check():
+    except Exception:
+        # Unexpected exceptions (ImportError, OSError, ConnectionError,
+        # MemoryError, ...) should NOT crash the whole chain — log with
+        # traceback so the root cause is visible, then move on to the
+        # next link. Providers ought to wrap their transport errors in
+        # OCRError per the protocol contract; this is the safety net.
+        logger.exception(
+            "OCR provider %s (model=%s) raised an unexpected exception "
+            "while initialising; falling back",
+            provider,
+            model,
+        )
+        return None
+    try:
+        healthy = candidate.health_check()
+    except Exception:
+        logger.exception(
+            "OCR provider %s (model=%s) health_check raised; treating as unhealthy",
+            provider,
+            model,
+        )
+        return None
+    if not healthy:
         logger.warning(
             "OCR provider %s (model=%s) failed health_check; trying next link.",
             provider,
@@ -161,8 +183,16 @@ def get_ocr_engine(settings: Settings) -> OCREngineSelection:
     """Build the OCR engine, walking the fallback chain on failures.
 
     Subsequent calls return the cached selection until
-    ``reset_ocr_engine`` is invoked. The cache is implicit: the
-    first call's settings define the engine for the process lifetime.
+    ``reset_ocr_engine`` is invoked. The cache is implicit: **the
+    first call's settings define the engine for the process
+    lifetime** — changing ``settings.ocr_provider`` or any
+    ``ocr_*_model`` field after the first call has no effect until
+    ``reset_ocr_engine()`` is invoked. This is intentional: each
+    provider keeps multi-GB weights resident; thrashing them on
+    every settings tweak would defeat the singleton.
+
+    Callers that genuinely need to swap providers at runtime should
+    call ``reset_ocr_engine()`` first.
     """
     global _cached_selection
 
