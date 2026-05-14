@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from sdet_brain.ingestion.chunker import (
     DEFAULT_OVERLAP_RATIO,
@@ -71,19 +71,55 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _flatten_to_rgb(image: Image.Image) -> Image.Image:
+    """Coerce any mode into RGB without losing alpha to a black void.
+
+    ``RGB`` / ``L`` pass through. ``RGBA`` / ``LA`` / palette-with-alpha
+    are composited onto a white background — receipts photographed
+    against a checkered preview background OCR worse if alpha leaks
+    through as black. Everything else (``P``, ``CMYK``, ``I``, ``F``)
+    falls through to plain ``convert("RGB")``.
+    """
+    if image.mode in {"RGB", "L"}:
+        return image
+    if image.mode in {"RGBA", "LA"} or (
+        image.mode == "P" and "transparency" in image.info
+    ):
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        rgba = image.convert("RGBA")
+        background.paste(rgba, mask=rgba.split()[3])
+        return background
+    return image.convert("RGB")
+
+
 def _normalize_image_bytes(raw: bytes, *, max_dim: int) -> bytes:
-    """Apply EXIF transpose + resize + PNG re-encode."""
-    with Image.open(io.BytesIO(raw)) as opened:
-        transposed = ImageOps.exif_transpose(opened) or opened
-        if max(transposed.size) > max_dim:
-            transposed.thumbnail(
-                (max_dim, max_dim), Image.Resampling.LANCZOS,
-            )
-        if transposed.mode not in {"RGB", "L"}:
-            transposed = transposed.convert("RGB")
-        buf = io.BytesIO()
-        transposed.save(buf, format="PNG")
-        return buf.getvalue()
+    """Apply EXIF transpose + resize + PNG re-encode.
+
+    Wraps PIL exceptions into :class:`OCRError` with actionable
+    messages so callers can distinguish "bad input file" from
+    "OCR backend dead".
+    """
+    try:
+        with Image.open(io.BytesIO(raw)) as opened:
+            transposed = ImageOps.exif_transpose(opened) or opened
+            if max(transposed.size) > max_dim:
+                transposed.thumbnail(
+                    (max_dim, max_dim), Image.Resampling.LANCZOS,
+                )
+            transposed = _flatten_to_rgb(transposed)
+            buf = io.BytesIO()
+            transposed.save(buf, format="PNG")
+            return buf.getvalue()
+    except UnidentifiedImageError as exc:
+        raise OCRError(
+            "Cannot decode image — unsupported format or corrupt file. "
+            "Try re-exporting as PNG/JPEG.",
+        ) from exc
+    except Image.DecompressionBombError as exc:
+        raise OCRError(
+            "Image is suspiciously large (PIL decompression-bomb guard). "
+            "Resize the source below ~90 MP before ingesting.",
+        ) from exc
 
 
 def _frontmatter(
@@ -155,8 +191,7 @@ def _render_pdf_page_png(page: object, *, max_dim: int) -> bytes:
     pil_image = bitmap.to_pil()
     if max(pil_image.size) > max_dim:
         pil_image.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
-    if pil_image.mode not in {"RGB", "L"}:
-        pil_image = pil_image.convert("RGB")
+    pil_image = _flatten_to_rgb(pil_image)
     buf = io.BytesIO()
     pil_image.save(buf, format="PNG")
     return buf.getvalue()
