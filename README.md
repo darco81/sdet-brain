@@ -323,6 +323,20 @@ uv run sdet-brain-cli /path/to/receipts/scan.pdf
 uv run sdet-brain-cli /path/to/notes-and-photos  # mixed corpus
 ```
 
+**Measured on M5 Pro** (DeepSeek-OCR-2-6bit warm cache, see
+`scripts/smoke_v060_ocr_real.py`):
+
+| Input | Per-image | Quality vs ground truth |
+|---|---|---|
+| Faktura PDF (text layer present) | 3.2 s | 100% token match |
+| Multi-page PDF (digital) | 4.6 s | full content + table HTML |
+| HEIC paragon fiskalny (thermal print photo) | 2.6 s | ~80% — layout / NIP / EAN; **amounts and dates missing** |
+| JPEG code screenshot | 0.8 s | byte-perfect |
+
+**Known limitation:** receipt thermal-print photos lose small
+numeric fields (kwoty, daty). Regex stage 2 ported from Domowy
+Kombajn lands in v0.6.1.
+
 
 ```bash
 # 1. Make sure Qdrant is running and the collection exists.

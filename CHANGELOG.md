@@ -101,15 +101,52 @@ rejected, image >20 MB rejected, concurrent-ingest race via
 file-bytes `content_hash`, watcher excludes images (markdown-only
 opt-in deferred to v0.7.0).
 
+### Post-launch verification (2026-05-14, same-day)
+
+Live smoke on M5 Pro with real Polish documents from `~/Downloads`,
+real MLX-VLM `DeepSeek-OCR-2-6bit` (no mocks):
+
+| Document | Result | Per-image | Quality |
+|---|---|---|---|
+| `pro_forma_*.pdf` (faktura) | OK | 3.2 s | **100% token match** vs PDF text-layer ground truth (160/160 tokens ≥3 chars) |
+| `PA_3841_2026.pdf` (PURENERGY invoice) | OK | 4.6 s | NIP, IBAN 26-digit, addresses, items preserved as HTML `<table>` |
+| `IMG_0335.HEIC` (CCC paragon) | OK | 2.6 s | ~80% — header / NIP / EAN / 40-char transaction hash present; **amounts and dates missing** |
+| `IMG_0143.HEIC` (notebook page) | OK | 1.6 s | partial — short captions only (low text density) |
+| `IMG_0982.jpeg` (code screenshot) | OK | 0.8 s | 100% — Playwright test code byte-perfect |
+| 2 generic phone photos | OCRQualityError | — | correctly raised (no text content) |
+
+Synthetic Polish receipt smoke: 1.77 s pure inference, all expected
+tokens present. Mac factory boot 0.6 s (chain walk + health checks),
+cold model load adds ~5 s on first call.
+
+### Known limitation — paragony fiskalne
+
+Physical receipt photos (thermal-print kasy fiskalne) get the
+layout but **lose small numeric fields**: amounts next to `SUMA
+PLN` labels, prices per item, dates in the timestamp footer. This
+is characteristic of OCR on photos of thermal prints (low contrast,
+small digits sit next to labels). The donor pipeline in **Domowy
+Kombajn** solved this with a **regex stage 2** after OCR (see
+`m5_service/extract.py:_extract_total` with Polish patterns
+`SUMA PLN`, `RAZEM`, `DO ZAPŁATY`, etc.) — scheduled for v0.6.1.
+
+**Workaround for v0.6.0:** for receipts where totals matter
+(expense tracking, miesięczne rozliczenie), pair OCR'd content with
+a manual `total_pln` field in the frontmatter, or treat
+`ingest_image` as a "what did I buy / where" tool rather than "how
+much did I spend" tool. Faktury PDF are unaffected — text layer is
+clean.
+
 ### Backlog (post-0.6.0)
 
 - **0.6.1**: PII scrub via local NER (Polish-specific entities —
   NIP, kwoty, dane osobowe). Per-chunk `page_number` in payload.
+  **Receipt amount/date regex stage 2** ported from Domowy Kombajn.
 - **0.7.0**: Qwen3-VL MLX variant when `mlx-community` ships it
   (replaces Ollama Qwen fallback). Watcher integration with explicit
   opt-in flag `WATCH_INCLUDE_IMAGES=true`.
 - **0.2.0-win.0** sister release on `sdet-brain-win` — Ollama-only
-  stack, 4 GB VRAM-constrained, no Qwen fallback.
+  stack, 4 GB VRAM-constrained, no Qwen fallback. Shipped same day.
 
 ## [0.5.3] - 2026-05-11 - Memory hygiene + macOS automation
 
