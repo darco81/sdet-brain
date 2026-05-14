@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sdet_brain.ingestion.pipeline import ingest_path as run_ingest
+from sdet_brain.ingestion.pipeline import (
+    ingest_path as run_ingest,
+)
+from sdet_brain.ingestion.pipeline import (
+    maybe_build_ocr_engine,
+)
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools._helpers import (
     ToolError,
@@ -21,18 +26,27 @@ def ingest_path(
     force: bool = False,
     collection: str | None = None,
 ) -> str:
-    """Re-ingest a Markdown file or directory and return a summary string."""
+    """Re-ingest a file or directory and return a summary string.
+
+    Supports markdown (``.md``), images (``.jpg``/``.png``/``.heic``/...)
+    and PDFs (``.pdf``). Image and PDF files trigger OCR via the
+    configured provider chain (MLX-VLM → Ollama DeepSeek → Ollama Qwen
+    on Mac; Ollama-only on Win).
+    """
     target = Path(path)
     if not target.exists():
         raise ToolError(f"path does not exist: {target}")
     storage = require_storage(state)
     embedder = require_embedder(state)
+    ocr_engine = maybe_build_ocr_engine(target, state.settings)
     stats = run_ingest(
         target,
         storage,
         embedder,
         collection=collection_or_default(collection),
         force_reindex=force,
+        ocr_engine=ocr_engine,
+        settings=state.settings,
     )
     lines = [
         f"# Ingest summary for `{target}`",
