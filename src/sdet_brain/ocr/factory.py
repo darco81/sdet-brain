@@ -49,6 +49,18 @@ class OCREngineSelection:
     attempted: tuple[tuple[OCRProvider, str], ...]
 
 
+def _select_prompt(settings: Settings, model: str) -> str:
+    """Pick the right prompt for the requested model.
+
+    DeepSeek-OCR variants understand the ``<|grounding|>`` token and
+    benefit from the grounding prompt; everything else (Qwen2.5-VL,
+    llava, etc.) expects plain instructions.
+    """
+    if "deepseek" in model.lower():
+        return settings.ocr_grounding_prompt
+    return settings.ocr_general_prompt
+
+
 def _build_mlx_vlm(settings: Settings, model: str) -> IOCREngine:
     """Instantiate the MLX-VLM provider with the requested model.
 
@@ -63,16 +75,25 @@ def _build_mlx_vlm(settings: Settings, model: str) -> IOCREngine:
         ) from exc
     return MLXVLMOCREngine(
         model_name=model,
-        default_prompt=settings.ocr_grounding_prompt,
+        default_prompt=_select_prompt(settings, model),
         quality_min_chars=settings.ocr_quality_min_chars,
     )
 
 
-def _build_ollama(_settings: Settings, model: str) -> IOCREngine:
-    """Placeholder — replaced in M3 by the real Ollama provider."""
-    raise OCRError(
-        f"Ollama OCR provider not yet implemented (model={model!r}). "
-        "Wire up in M3 (src/sdet_brain/ocr/ollama_provider.py).",
+def _build_ollama(settings: Settings, model: str) -> IOCREngine:
+    """Instantiate the Ollama HTTP provider for the requested model tag."""
+    try:
+        from sdet_brain.ocr.ollama_provider import OllamaOCREngine
+    except ImportError as exc:  # pragma: no cover - defensive
+        raise OCRError(
+            f"Ollama provider module could not be imported (model={model!r}).",
+        ) from exc
+    return OllamaOCREngine(
+        model_name=model,
+        default_prompt=_select_prompt(settings, model),
+        quality_min_chars=settings.ocr_quality_min_chars,
+        keep_alive=settings.ocr_keep_alive,
+        timeout_seconds=settings.ocr_timeout_seconds,
     )
 
 
