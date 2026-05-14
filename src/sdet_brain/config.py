@@ -13,6 +13,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 EmbeddingProvider = Literal["mlx", "gemini"]
+OCRProvider = Literal["mlx-vlm", "ollama"]
 
 
 class Settings(BaseSettings):
@@ -171,6 +172,85 @@ class Settings(BaseSettings):
             "resident weights on a 64 GB Mac. Increase to 2 on hosts with "
             ">=96 GB unified memory for warm fast+instruct."
         ),
+    )
+
+    # --- OCR (v0.6.0) ---
+    ocr_provider: OCRProvider = Field(
+        default="mlx-vlm",
+        description=(
+            "Primary OCR backend. ``mlx-vlm`` uses local MLX (Mac flagship); "
+            "``ollama`` uses an Ollama server (cross-platform). Factory falls "
+            "back along the configured chain on health-check failure."
+        ),
+    )
+    ocr_mlx_vlm_model: str = Field(
+        default="mlx-community/DeepSeek-OCR-2-6bit",
+        description="HuggingFace model id for the MLX-VLM OCR provider.",
+    )
+    ocr_ollama_primary_model: str = Field(
+        default="deepseek-ocr",
+        description="Ollama model tag used as the primary OCR model on either platform.",
+    )
+    ocr_ollama_fallback_model: str | None = Field(
+        default="qwen2.5-vl:32b",
+        description=(
+            "Heavyweight multilingual fallback (~40 s/img on Mac). Set to "
+            "``None`` on hosts that cannot fit it (Win 4 GB VRAM)."
+        ),
+    )
+    ocr_timeout_seconds: int = Field(
+        default=120,
+        ge=1,
+        description="Wall-clock cap for a single OCR call before ``OCRTimeoutError``.",
+    )
+    ocr_max_image_dim: int = Field(
+        default=1600,
+        ge=64,
+        description="Resize budget — long edge clamped to this many pixels before OCR.",
+    )
+    ocr_max_image_bytes: int = Field(
+        default=20_000_000,
+        ge=1,
+        description="Hard ceiling on input image size; bigger payloads are rejected.",
+    )
+    ocr_max_pdf_pages: int = Field(
+        default=20,
+        ge=1,
+        description="Hard ceiling on PDF page count; longer documents are rejected.",
+    )
+    ocr_keep_alive: str = Field(
+        default="5m",
+        description=(
+            "Ollama ``keep_alive`` directive — how long the model stays "
+            "loaded after the last request before being unloaded."
+        ),
+    )
+    ocr_quality_min_chars: int = Field(
+        default=50,
+        ge=0,
+        description=(
+            "Below this character count (after grounding-token strip) the "
+            "provider raises ``OCRQualityError`` and the factory tries the "
+            "next link in the fallback chain."
+        ),
+    )
+    ocr_pii_scrub: bool = Field(
+        default=False,
+        description=(
+            "Feature flag for post-OCR PII scrubbing (NIP, account numbers, "
+            "personal data). Off in v0.6.0 MVP; hook reserved for v0.6.1."
+        ),
+    )
+    ocr_grounding_prompt: str = Field(
+        default="<|grounding|>Convert the document to markdown.",
+        description="Prompt fed to DeepSeek-OCR variants — uses the grounding token.",
+    )
+    ocr_general_prompt: str = Field(
+        default=(
+            "Extract all text from this image and return it as markdown. "
+            "Preserve layout and structure."
+        ),
+        description="Prompt fed to general VLMs (Qwen2.5-VL) that lack the grounding token.",
     )
 
 
