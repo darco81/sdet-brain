@@ -25,6 +25,9 @@ dependencies = [
     "mlx-vlm>=0.5.0 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "fastembed>=0.4",
     "prompt-toolkit>=3.0.52",
+    "pillow>=10.0.0",
+    "pillow-heif>=0.17.0",
+    "pypdfium2>=4.30.0",
 ]
 
 [project.optional-dependencies]
@@ -78,7 +81,15 @@ strict_equality = true
 extra_checks = true
 
 [[tool.mypy.overrides]]
-module = ["frontmatter.*", "watchdog.*", "mlx.*", "mlx_embeddings.*", "mlx_vlm.*"]
+module = [
+    "frontmatter.*",
+    "watchdog.*",
+    "mlx.*",
+    "mlx_embeddings.*",
+    "mlx_vlm.*",
+    "pillow_heif.*",
+    "pypdfium2.*",
+]
 ignore_missing_imports = true
 
 [tool.ruff]
