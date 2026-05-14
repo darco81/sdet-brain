@@ -28,6 +28,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-05-14 - OCR hardening (same-day patch from gruntowne review)
+
+Same-day post-launch hardening based on a four-agent code review of
+v0.6.0 (code quality, silent failures, test coverage, type design).
+Twelve high-confidence findings (multi-reviewer hits) fixed across the
+factory, providers, parser, and pipeline. No public API breaks; one
+type semantic correction (`OCRError` parent class).
+
+### Fixed
+
+- **`OCRError(RuntimeError)` → `OCRError(Exception)`** — domain error
+  taxonomy, not interpreter-classification. Factory's `_try_build`
+  catches `OCRError` only; the old parent made it look like
+  `_try_build` should catch generic `RuntimeError` too. Now the
+  contract is explicit (providers MUST wrap transport errors in
+  `OCRError` per the protocol docstring).
+- **`factory._try_build` chain leak** — the catch was `except OCRError`
+  only, so `httpx.ConnectError`, `ImportError`, `OSError`,
+  `MemoryError`, etc. raised from a builder would crash the whole
+  chain instead of falling back. Added a second `except Exception`
+  branch with `logger.exception(...)` so unexpected exceptions still
+  trigger fallback AND leave a full traceback for triage. Same fix
+  applied to `health_check()` itself.
+- **`MLXVLMOCREngine._ensure_loaded` partial-load bug** — the second
+  check inside the lock only inspected `_model`. A `load_config()`
+  failure after `load()` succeeded left `_processor`/`_config` as
+  `None` while `_model` was set; the next call short-circuited on a
+  half-built engine. Now all three are required for the early
+  return.
+- **`mlx.core` import inside the `clear_cache()` finally** — broad
+  `except Exception` was demoting a partial-install bug
+  (`ImportError: mlx.core`) to a WARNING. Split: `ImportError` now
+  re-raises with a clear "venv is broken, re-run `uv sync`" message;
+  documented `RuntimeError` from MLX is the only thing demoted.
+- **`OllamaOCREngine.health_check` opacity** — `except httpx.HTTPError`
+  swallowed everything from `ConnectError` to `ProxyError` to 5xx
+  with the same `"Ollama health check failed at <url>"` log line.
+  Now the exception itself is included in the log so the operator
+  can tell daemon-down from corp-proxy from 502. `httpx.InvalidURL`
+  (which is NOT `HTTPError`'s subclass) is caught separately so a
+  malformed `OCR_OLLAMA_HOST` env var fails the health-check cleanly
+  instead of crashing the factory boot.
+- **`image_parser._normalize_image_bytes` alpha-loss bug** — RGBA /
+  LA / palette-with-transparency images fell into `convert("RGB")`,
+  which leaks alpha as a black void. Receipts photographed against a
+  checkered preview background OCR'd visibly worse. Now alpha
+  composes onto white before convert. Same fix in
+  `_render_pdf_page_png` for transparent PDF pages.
+- **`image_parser` PIL exception passthrough** —
+  `UnidentifiedImageError` and `DecompressionBombError` propagated
+  as raw OSError-family exceptions; users saw them stringified in
+  `stats.errors` with no actionable context. Now translated to
+  `OCRError` with clear messages ("try re-exporting as PNG/JPEG" /
+  "resize below 90 MP").
+- **`pipeline.ingest_path` blanket `except Exception` swallowed
+  `MemoryError` / `KeyboardInterrupt`** — N consecutive identical
+  failures were silently recorded instead of aborting the run. Now
+  fatal classes (`MemoryError`, `KeyboardInterrupt`, `SystemExit`)
+  re-raise; domain errors (`OCRError`, `OCRQualityError`,
+  `OCRTimeoutError`) continue as per-file diagnostics.
+- **`ingest_image` MCP tool docstring/contract drift** — docstring
+  said "Markdown files are silently ignored" but a markdown-only
+  directory raised `ToolError("nothing to OCR")`. Docstring now
+  matches the actual code path.
+- **`image_parser.parse_pdf` zero-page guard** — the `last_result
+  is None` check after the page loop was only reachable for a
+  zero-page PDF that pdfium would normally reject. Documented and
+  test-covered.
+- **`pipeline.ingest_path` source_type duplication** — the dispatcher
+  used to hardcode `"image-ocr"` whenever it saw an image/PDF suffix,
+  duplicating knowledge that already lives in `image_parser._frontmatter()`.
+  Now read from `document.frontmatter["source_type"]` when set by the
+  parser. Single source of truth, opens the door to per-format
+  source types in v0.7.0 (`image-ocr` vs `pdf-ocr`) without touching
+  the pipeline.
+
+### Tests
+
+- **318 tests** passing (was 293, +25 hardening-driven). mypy
+  `--strict` clean across 78 source files. ruff clean.
+- `test_ocr_error_inherits_from_exception_not_runtime` — regression
+  pin on the parent-class fix.
+- `test_builder_unexpected_exception_still_falls_back` +
+  `test_health_check_exception_treated_as_unhealthy` — pin chain-leak
+  fix in `_try_build`.
+- `test_reset_ocr_engine_invalidates_cache` — pin singleton lifecycle.
+- `test_health_check_returns_true_when_mlx_vlm_importable` rewritten
+  to inject a fake module via `sys.modules`. Now cross-platform —
+  Win CI without mlx-vlm installed no longer false-fails.
+- `tests/ocr/test_ollama_provider.py`: parametrized 4xx/5xx, non-JSON
+  body, trailing-slash host actual URL assertion, health-check
+  exception detail in logs.
+- `tests/ingestion/test_image_parser.py`: parametrized RGBA / LA / P
+  / CMYK mode coverage, `UnidentifiedImageError` → `OCRError`,
+  zero-page PDF → `OCRError`.
+- `tests/ingestion/test_pipeline_dispatch.py` (NEW): six tests for
+  `maybe_build_ocr_engine` + fatal-vs-recoverable error categorization.
+
+### Won't fix in v0.6.1 (deferred / out of scope)
+
+- **`OCREngineSelection.attempted` named tuple refactor** —
+  `tuple[tuple[OCRProvider, str], ...]` works fine for telemetry;
+  refactor to `AttemptedLink` dataclass would churn the Win fork
+  tests for marginal readability gain. Revisit in v0.7.0.
+- **`OCRProvider` Literal alignment Mac/Win** — keeping the divergence
+  (Mac `Literal["mlx-vlm", "ollama"]`, Win `Literal["ollama"]`) is
+  the pragmatic choice; each fork owns its surface.
+- **Receipt amount/date regex stage 2 (port from Domowy Kombajn)** —
+  punted to a separate PR / v0.6.2. Distinct feature scope, deserves
+  its own atomic ship.
+
 ## [0.6.0] - 2026-05-14 - Image / PDF ingestion via DeepSeek-OCR
 
 Receipts, invoices, whiteboard photos, screenshots, and multi-page
