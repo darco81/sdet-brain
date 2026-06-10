@@ -66,9 +66,7 @@ def test_english_body_detected() -> None:
 
 def test_filename_suffix_overrides_body_language() -> None:
     body = "Witaj świecie, ąćęłńóśźż wszystkie znaki polskie."
-    result = classify_path(
-        Path("2026-04-29-dm-template-fullstack-to-qa-EN.md"), body_sample=body
-    )
+    result = classify_path(Path("2026-04-29-dm-template-fullstack-to-qa-EN.md"), body_sample=body)
     assert result.frontmatter.language == "en"
 
 
@@ -83,9 +81,7 @@ def test_tags_strip_dates_and_stoplist() -> None:
 
 def test_tags_capped_at_eight() -> None:
     result = classify_path(
-        Path(
-            "2026-04-30-very-long-filename-with-many-distinct-tokens-here-please.md"
-        )
+        Path("2026-04-30-very-long-filename-with-many-distinct-tokens-here-please.md")
     )
     assert len(result.frontmatter.tags) <= 8
 

@@ -40,9 +40,7 @@ class _FakeOCREngine:
     def model_name(self) -> str:
         return self._model
 
-    def extract_text(
-        self, image_bytes: bytes, *, prompt: str | None = None
-    ) -> OCRResult:
+    def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
         _ = prompt
         self.calls.append(image_bytes)
         return OCRResult(
@@ -116,7 +114,9 @@ def test_parse_image_content_hash_uses_raw_bytes(tmp_path: Path) -> None:
     import hashlib
 
     doc = parse_image(
-        path, ocr_engine=_FakeOCREngine(), settings=Settings(),
+        path,
+        ocr_engine=_FakeOCREngine(),
+        settings=Settings(),
     )
 
     assert doc.content_hash == hashlib.sha256(raw).hexdigest()
@@ -152,9 +152,7 @@ class _FakePdfDocument:
         self.closed = True
 
 
-def _patch_pdfium(
-    monkeypatch: pytest.MonkeyPatch, *, pages: int = 2
-) -> None:
+def _patch_pdfium(monkeypatch: pytest.MonkeyPatch, *, pages: int = 2) -> None:
     monkeypatch.setattr(
         pypdfium2,
         "PdfDocument",
@@ -213,9 +211,7 @@ def test_parse_pdf_closes_document_on_failure(
         def model_name(self) -> str:
             return "boom"
 
-        def extract_text(
-            self, image_bytes: bytes, *, prompt: str | None = None
-        ) -> OCRResult:
+        def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
             _ = image_bytes
             _ = prompt
             raise OCRError("simulated OCR failure")

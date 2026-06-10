@@ -93,11 +93,7 @@ class MLXVLMOCREngine:
         return model, processor, config
 
     def _ensure_loaded(self) -> tuple[Any, Any, Any]:
-        if (
-            self._model is not None
-            and self._processor is not None
-            and self._config is not None
-        ):
+        if self._model is not None and self._processor is not None and self._config is not None:
             return self._model, self._processor, self._config
         with self._lock:
             # Re-check all three under lock: a half-built engine (e.g.
@@ -105,11 +101,7 @@ class MLXVLMOCREngine:
             # before config returned) leaves _model set while _config
             # is None. Checking only _model would let the next call
             # short-circuit on a partial state.
-            if (
-                self._model is None
-                or self._processor is None
-                or self._config is None
-            ):
+            if self._model is None or self._processor is None or self._config is None:
                 try:
                     self._model, self._processor, self._config = self._load_model()
                 except ImportError as exc:
@@ -145,9 +137,7 @@ class MLXVLMOCREngine:
             verbose=False,
         )
 
-    def extract_text(
-        self, image_bytes: bytes, *, prompt: str | None = None
-    ) -> OCRResult:
+    def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
         if not image_bytes:
             raise OCRError("Empty image_bytes — nothing to OCR.")
 
@@ -161,9 +151,7 @@ class MLXVLMOCREngine:
 
             t0 = time.time()
             try:
-                output = self._generate(
-                    model, processor, config, effective_prompt, tmp_path
-                )
+                output = self._generate(model, processor, config, effective_prompt, tmp_path)
             finally:
                 # Release Metal/unified-memory arena that MLX would
                 # otherwise carry between calls. Same pattern as

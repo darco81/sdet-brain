@@ -58,9 +58,7 @@ def test_absolute_exclude_drops_only_matching_subtree(tmp_path: Path) -> None:
 
     found = sorted(
         p.relative_to(tmp_path).as_posix()
-        for p in _iter_ingestible_files(
-            tmp_path, exclude_dirs=(tmp_path / "drop",)
-        )
+        for p in _iter_ingestible_files(tmp_path, exclude_dirs=(tmp_path / "drop",))
     )
 
     assert found == ["deep/drop/y.md", "kept.md"]
@@ -103,9 +101,7 @@ def test_yields_image_and_pdf_files_alongside_markdown(tmp_path: Path) -> None:
     (tmp_path / "ignored.txt").write_text("nope")
     (tmp_path / "ignored.docx").write_bytes(b"PK fake docx")
 
-    found = sorted(
-        p.name for p in _iter_ingestible_files(tmp_path)
-    )
+    found = sorted(p.name for p in _iter_ingestible_files(tmp_path))
 
     assert found == ["doc.md", "photo.heic", "receipt.jpg", "scan.PDF"]
 

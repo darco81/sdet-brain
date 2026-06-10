@@ -82,9 +82,7 @@ def _flatten_to_rgb(image: Image.Image) -> Image.Image:
     """
     if image.mode in {"RGB", "L"}:
         return image
-    if image.mode in {"RGBA", "LA"} or (
-        image.mode == "P" and "transparency" in image.info
-    ):
+    if image.mode in {"RGBA", "LA"} or (image.mode == "P" and "transparency" in image.info):
         background = Image.new("RGB", image.size, (255, 255, 255))
         rgba = image.convert("RGBA")
         background.paste(rgba, mask=rgba.split()[3])
@@ -104,7 +102,8 @@ def _normalize_image_bytes(raw: bytes, *, max_dim: int) -> bytes:
             transposed = ImageOps.exif_transpose(opened) or opened
             if max(transposed.size) > max_dim:
                 transposed.thumbnail(
-                    (max_dim, max_dim), Image.Resampling.LANCZOS,
+                    (max_dim, max_dim),
+                    Image.Resampling.LANCZOS,
                 )
             transposed = _flatten_to_rgb(transposed)
             buf = io.BytesIO()
@@ -179,7 +178,10 @@ def parse_image(
         source_path=str(path),
         content_hash=content_hash,
         frontmatter=_frontmatter(
-            path, result, page_number=None, total_pages=None,
+            path,
+            result,
+            page_number=None,
+            total_pages=None,
         ),
         chunks=tuple(chunks),
     )
@@ -233,7 +235,8 @@ def parse_pdf(
         for page_index in range(total_pages):
             page = pdf[page_index]
             png_bytes = _render_pdf_page_png(
-                page, max_dim=settings.ocr_max_image_dim,
+                page,
+                max_dim=settings.ocr_max_image_dim,
             )
             result = ocr_engine.extract_text(png_bytes)
             last_result = result
@@ -254,7 +257,10 @@ def parse_pdf(
         source_path=str(path),
         content_hash=content_hash,
         frontmatter=_frontmatter(
-            path, last_result, page_number=None, total_pages=total_pages,
+            path,
+            last_result,
+            page_number=None,
+            total_pages=total_pages,
         ),
         chunks=tuple(chunks),
     )

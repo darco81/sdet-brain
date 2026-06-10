@@ -82,9 +82,7 @@ class FastembedBM25:
                     raise SparseEmbeddingError(
                         "fastembed is not installed; cannot load BM25 embedder."
                     ) from exc
-                logger.info(
-                    "Loading sparse embedder %s (lazy)", self._model_name
-                )
+                logger.info("Loading sparse embedder %s (lazy)", self._model_name)
                 self._encoder = SparseTextEmbedding(model_name=self._model_name)
         assert self._encoder is not None  # noqa: S101 - lock guarantees this
         return self._encoder

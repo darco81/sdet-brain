@@ -20,7 +20,7 @@ from collections.abc import Sequence
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(argv) if argv is not None else sys.argv[1:]
 
-    if not args or args[0] in ("-h", "--help") and len(args) == 1:
+    if not args or (args[0] in ("-h", "--help") and len(args) == 1):
         _print_help()
         return 0
 

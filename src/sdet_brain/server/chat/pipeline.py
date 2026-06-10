@@ -92,9 +92,7 @@ class ChatPipeline:
             )
         return passages, sources
 
-    def _build_messages(
-        self, request: ChatRequest
-    ) -> tuple[list[ChatMessage], list[Source], int]:
+    def _build_messages(self, request: ChatRequest) -> tuple[list[ChatMessage], list[Source], int]:
         """Stitch system prompt + retrieved context + history."""
         latest_user = next(
             (m.content for m in reversed(request.messages) if m.role == "user"),
@@ -110,9 +108,7 @@ class ChatPipeline:
         if context_block:
             system_payload = f"{SYSTEM_PROMPT}\n{context_block}"
 
-        messages: list[ChatMessage] = [
-            ChatMessage(role="system", content=system_payload)
-        ]
+        messages: list[ChatMessage] = [ChatMessage(role="system", content=system_payload)]
         for turn in request.messages:
             messages.append(ChatMessage(role=turn.role, content=turn.content))
         return messages, sources, len(passages)
@@ -123,9 +119,7 @@ class ChatPipeline:
         reply = self._llm.chat(messages, max_tokens=request.max_tokens)
         return reply, sources, retrieved_count
 
-    def respond_stream(
-        self, request: ChatRequest
-    ) -> tuple[Iterator[str], list[Source], int]:
+    def respond_stream(self, request: ChatRequest) -> tuple[Iterator[str], list[Source], int]:
         """Token-by-token streaming variant.
 
         Returns the iterator plus the citations / count so the caller

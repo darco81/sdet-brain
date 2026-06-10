@@ -49,8 +49,7 @@ def ingest_image(
 
     if target.is_file() and not (is_image_path(target) or is_pdf_path(target)):
         raise ToolError(
-            f"`{target}` is not an image or PDF — use `ingest_path` for "
-            "markdown files.",
+            f"`{target}` is not an image or PDF — use `ingest_path` for markdown files.",
         )
 
     # Guard against the wrong-tool-for-the-job mistake before paying for

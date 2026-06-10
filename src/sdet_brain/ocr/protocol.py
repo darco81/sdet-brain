@@ -44,9 +44,7 @@ class IOCREngine(Protocol):
         """Human-readable model identifier (e.g. ``mlx-community/DeepSeek-OCR-2-6bit``)."""
         ...
 
-    def extract_text(
-        self, image_bytes: bytes, *, prompt: str | None = None
-    ) -> OCRResult:
+    def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
         """Run OCR against a single in-memory image.
 
         ``image_bytes`` should be a fully-decoded raster image (JPEG/PNG/...).

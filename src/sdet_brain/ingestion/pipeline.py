@@ -60,12 +60,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_BATCH_SIZE: Final[int] = 32
-CHUNK_NAMESPACE: Final[uuid.UUID] = uuid.uuid5(
-    uuid.NAMESPACE_URL, "https://sdet-brain/chunks"
-)
-INGESTIBLE_SUFFIXES: Final[frozenset[str]] = (
-    frozenset({".md"}) | IMAGE_SUFFIXES | PDF_SUFFIXES
-)
+CHUNK_NAMESPACE: Final[uuid.UUID] = uuid.uuid5(uuid.NAMESPACE_URL, "https://sdet-brain/chunks")
+INGESTIBLE_SUFFIXES: Final[frozenset[str]] = frozenset({".md"}) | IMAGE_SUFFIXES | PDF_SUFFIXES
 
 
 @dataclass
@@ -88,9 +84,7 @@ class IngestStats:
         )
 
 
-def _iter_ingestible_files(
-    root: Path, exclude_dirs: tuple[Path, ...] = ()
-) -> Iterator[Path]:
+def _iter_ingestible_files(root: Path, exclude_dirs: tuple[Path, ...] = ()) -> Iterator[Path]:
     """Yield ingestible files under ``root`` (or just ``root`` itself).
 
     Ingestible suffixes (case-insensitive): ``.md`` plus everything in
@@ -147,9 +141,7 @@ def _chunk_point_id(source_path: str, chunk_index: int) -> str:
     return str(uuid.uuid5(CHUNK_NAMESPACE, f"{source_path}#{chunk_index}"))
 
 
-def _existing_hash(
-    storage: QdrantStorage, collection: str, source_path: str
-) -> str | None:
+def _existing_hash(storage: QdrantStorage, collection: str, source_path: str) -> str | None:
     """Return the ``content_hash`` of any chunk currently stored for ``source_path``."""
     points, _ = storage.client.scroll(
         collection_name=collection,
@@ -203,11 +195,7 @@ def _load_existing_hashes(
             payload = point.payload or {}
             path = payload.get("source_path")
             content_hash = payload.get("content_hash")
-            if (
-                isinstance(path, str)
-                and isinstance(content_hash, str)
-                and path not in seen
-            ):
+            if isinstance(path, str) and isinstance(content_hash, str) and path not in seen:
                 seen[path] = content_hash
         # Early exit once we have a hash for every path we asked about.
         if len(seen) == len(source_paths):
@@ -216,14 +204,10 @@ def _load_existing_hashes(
             return seen
 
 
-def _delete_existing_chunks(
-    storage: QdrantStorage, collection: str, source_path: str
-) -> None:
+def _delete_existing_chunks(storage: QdrantStorage, collection: str, source_path: str) -> None:
     storage.delete_by_filter(
         collection,
-        Filter(
-            must=[FieldCondition(key="source_path", match=MatchValue(value=source_path))]
-        ),
+        Filter(must=[FieldCondition(key="source_path", match=MatchValue(value=source_path))]),
     )
 
 
@@ -290,9 +274,7 @@ def _build_named_vector(dense: list[float], sparse: SparseVector) -> Any:
     """
     return {
         DENSE_VECTOR_NAME: dense,
-        SPARSE_VECTOR_NAME: QdrantSparseVector(
-            indices=sparse.indices, values=sparse.values
-        ),
+        SPARSE_VECTOR_NAME: QdrantSparseVector(indices=sparse.indices, values=sparse.values),
     }
 
 
@@ -353,9 +335,7 @@ def _ingest_document(
     stats.files_processed += 1
 
 
-def maybe_build_ocr_engine(
-    target: Path, settings: Settings
-) -> IOCREngine | None:
+def maybe_build_ocr_engine(target: Path, settings: Settings) -> IOCREngine | None:
     """Build an OCR engine if ``target`` will need one, else return ``None``.
 
     Pre-scans the target so markdown-only paths skip OCR backend
@@ -461,15 +441,15 @@ def ingest_path(
     # batch and let the per-file fallback handle it.
     cached_hashes: dict[str, str] = {}
     if len(files) > 1:
-        cached_hashes = _load_existing_hashes(
-            storage, collection, [str(f) for f in files]
-        )
+        cached_hashes = _load_existing_hashes(storage, collection, [str(f) for f in files])
 
     stats = IngestStats()
     for file_path in iterator:
         try:
             document = _parse_one(
-                file_path, ocr_engine=ocr_engine, settings=settings,
+                file_path,
+                ocr_engine=ocr_engine,
+                settings=settings,
             )
             # OCR documents tag themselves via frontmatter; markdown
             # uses the path-heuristic classifier. Reading source_type

@@ -38,6 +38,7 @@ def _sparse_embedder() -> FastembedBM25:
         _SPARSE = get_sparse_embedder()
     return _SPARSE
 
+
 _DEFAULT_LIMIT = 5
 _MAX_LIMIT = 50
 
@@ -73,9 +74,7 @@ def run_category_search(
     storage = require_storage(state)
     collection_name = collection_or_default(collection)
 
-    must: list[Any] = [
-        FieldCondition(key="category", match=MatchValue(value=category))
-    ]
+    must: list[Any] = [FieldCondition(key="category", match=MatchValue(value=category))]
     for key, value in (extra_keyword_filters or {}).items():
         if value:
             must.append(FieldCondition(key=key, match=MatchValue(value=value)))
@@ -128,9 +127,7 @@ def format_hits_markdown(
             if chunk_index is not None and total_chunks is not None
             else ""
         )
-        lines.append(
-            f"## {index}. [{source_path}]{chunk_label} (score: {float(hit.score):.3f})"
-        )
+        lines.append(f"## {index}. [{source_path}]{chunk_label} (score: {float(hit.score):.3f})")
         for key in extra_payload_keys:
             value = payload.get(key)
             if value is not None and value != "":

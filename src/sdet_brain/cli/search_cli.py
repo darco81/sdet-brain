@@ -45,9 +45,7 @@ def _sparse() -> FastembedBM25:
 def _source_type_filter(value: str | None) -> Filter | None:
     if not value:
         return None
-    return Filter(
-        must=[FieldCondition(key="source_type", match=MatchValue(value=value))]
-    )
+    return Filter(must=[FieldCondition(key="source_type", match=MatchValue(value=value))])
 
 
 def _extract_slug(source_path: str) -> str:

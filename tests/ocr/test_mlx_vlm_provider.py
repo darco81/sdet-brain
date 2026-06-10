@@ -72,7 +72,9 @@ def test_extract_text_strips_deepseek_tokens_and_dedupes(
         "<|ref|>noisy<|/ref|><|det|>[[1,2,3,4]]<|/det|> Real data here"
     )
     monkeypatch.setattr(
-        engine, "_generate", lambda *_a, **_kw: _FakeGenerationResult(text=raw),
+        engine,
+        "_generate",
+        lambda *_a, **_kw: _FakeGenerationResult(text=raw),
     )
 
     result = engine.extract_text(b"png-bytes")
@@ -90,7 +92,9 @@ def test_extract_text_raises_quality_error_when_too_short(
 ) -> None:
     _patch_loaded(monkeypatch, engine)
     monkeypatch.setattr(
-        engine, "_generate", lambda *_a, **_kw: _FakeGenerationResult(text="hi"),
+        engine,
+        "_generate",
+        lambda *_a, **_kw: _FakeGenerationResult(text="hi"),
     )
 
     with pytest.raises(OCRQualityError) as excinfo:
@@ -105,7 +109,9 @@ def test_extract_text_handles_string_output(
     # mlx-vlm 0.5.x sometimes returns a raw str rather than GenerationResult.
     _patch_loaded(monkeypatch, engine)
     monkeypatch.setattr(
-        engine, "_generate", lambda *_a, **_kw: "Plain string output long enough.",
+        engine,
+        "_generate",
+        lambda *_a, **_kw: "Plain string output long enough.",
     )
 
     result = engine.extract_text(b"png-bytes")

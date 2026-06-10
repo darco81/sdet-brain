@@ -51,9 +51,7 @@ def test_long_document_with_five_headings_yields_multiple_chunks() -> None:
 def test_code_blocks_are_atomic() -> None:
     body = (
         "Intro paragraph.\n\n"
-        "```python\n"
-        + "print('one')\n" * 30
-        + "```\n\n"
+        "```python\n" + "print('one')\n" * 30 + "```\n\n"
         "Tail paragraph that follows the block.\n"
     )
     chunks = chunk_markdown(body, target_size=200)
@@ -80,12 +78,7 @@ def test_tables_are_atomic() -> None:
 
 
 def test_overlap_prepends_tail_of_previous_chunk() -> None:
-    body = (
-        "## First\n\n"
-        + "alpha " * 200
-        + "\n\n## Second\n\n"
-        + "beta " * 200
-    )
+    body = "## First\n\n" + "alpha " * 200 + "\n\n## Second\n\n" + "beta " * 200
     chunks = chunk_markdown(body, target_size=400, overlap_pct=0.15)
     assert len(chunks) >= 2
     second = chunks[1]
@@ -105,12 +98,7 @@ def test_overlap_prepends_tail_of_previous_chunk() -> None:
 
 
 def test_overlap_disabled_produces_smaller_chunks_than_with_overlap() -> None:
-    body = (
-        "## First\n\n"
-        + "alpha " * 200
-        + "\n\n## Second\n\n"
-        + "beta " * 200
-    )
+    body = "## First\n\n" + "alpha " * 200 + "\n\n## Second\n\n" + "beta " * 200
     no_overlap = chunk_markdown(body, target_size=400, overlap_pct=0.0)
     with_overlap = chunk_markdown(body, target_size=400, overlap_pct=0.15)
     assert len(no_overlap) == len(with_overlap)
@@ -120,9 +108,7 @@ def test_overlap_disabled_produces_smaller_chunks_than_with_overlap() -> None:
         assert right.char_count > left.char_count
 
 
-@pytest.mark.parametrize(
-    "fixture", ["simple.md", "voice-sample.md", "complex.md"]
-)
+@pytest.mark.parametrize("fixture", ["simple.md", "voice-sample.md", "complex.md"])
 def test_fixture_files_chunk_cleanly(fixture: str) -> None:
     body = (FIXTURES / fixture).read_text(encoding="utf-8")
     chunks = chunk_markdown(body, target_size=DEFAULT_TARGET_CHARS)
@@ -176,9 +162,7 @@ def test_small_tail_after_code_block_is_not_merged() -> None:
     """Code-fenced previous chunk stays atomic - no append."""
     body = (
         "## Pipeline\n\n"
-        "```python\n"
-        + "print('chunk-anchor')\n" * 30
-        + "```\n\n"
+        "```python\n" + "print('chunk-anchor')\n" * 30 + "```\n\n"
         "## Tail\n\nShort follow-up under 250 chars.\n"
     )
     chunks = chunk_markdown(body, target_size=400, overlap_pct=0.0)
@@ -220,9 +204,12 @@ def test_threshold_boundary_at_250() -> None:
 def test_chunk_indices_renumber_after_merge() -> None:
     """After merging, indices must be 0..n-1 and total_chunks consistent."""
     body = (
-        "## A\n\n" + ("alpha " * 50)
-        + "\n\n## B\n\n" + ("beta " * 50)
-        + "\n\n## C\n\n" + "tiny tail."
+        "## A\n\n"
+        + ("alpha " * 50)
+        + "\n\n## B\n\n"
+        + ("beta " * 50)
+        + "\n\n## C\n\n"
+        + "tiny tail."
     )
     chunks = chunk_markdown(body, target_size=300, overlap_pct=0.0)
     assert [c.chunk_index for c in chunks] == list(range(len(chunks)))

@@ -37,12 +37,8 @@ TaskType = Literal[
 
 # Defaults for each task tier. ``Settings`` can override via env vars.
 DEFAULT_FAST_MODEL: Final[str] = "mlx-community/gemma-4-26B-A4B-it-OptiQ-4bit"
-DEFAULT_INSTRUCT_MODEL: Final[str] = (
-    "mlx-community/Qwen3-Next-80B-A3B-Instruct-4bit"
-)
-DEFAULT_REASONING_MODEL: Final[str] = (
-    "mlx-community/Qwen3-Next-80B-A3B-Thinking-4bit"
-)
+DEFAULT_INSTRUCT_MODEL: Final[str] = "mlx-community/Qwen3-Next-80B-A3B-Instruct-4bit"
+DEFAULT_REASONING_MODEL: Final[str] = "mlx-community/Qwen3-Next-80B-A3B-Thinking-4bit"
 
 
 class LLMRouter:
@@ -123,9 +119,7 @@ class LLMRouter:
             )
             provider: ILLM = MLXLLm(model_name=model_name)
             if len(self._cache) >= self._cache_size:
-                evicted_name, evicted_provider = self._cache.popitem(
-                    last=False
-                )
+                evicted_name, evicted_provider = self._cache.popitem(last=False)
                 logger.info(
                     "LLMRouter evicting model=%s (cache full at %d)",
                     evicted_name,
@@ -164,9 +158,7 @@ class LLMRouter:
         max_tokens: int = 512,
         temperature: float = 0.7,
     ) -> str:
-        return self.get(task).generate(
-            prompt, max_tokens=max_tokens, temperature=temperature
-        )
+        return self.get(task).generate(prompt, max_tokens=max_tokens, temperature=temperature)
 
     def chat(
         self,
@@ -176,9 +168,7 @@ class LLMRouter:
         max_tokens: int = 512,
         temperature: float = 0.7,
     ) -> str:
-        return self.get(task).chat(
-            messages, max_tokens=max_tokens, temperature=temperature
-        )
+        return self.get(task).chat(messages, max_tokens=max_tokens, temperature=temperature)
 
     def chat_stream(
         self,
@@ -188,9 +178,7 @@ class LLMRouter:
         max_tokens: int = 512,
         temperature: float = 0.7,
     ) -> Iterator[str]:
-        return self.get(task).chat_stream(
-            messages, max_tokens=max_tokens, temperature=temperature
-        )
+        return self.get(task).chat_stream(messages, max_tokens=max_tokens, temperature=temperature)
 
     def loaded_models(self) -> list[str]:
         """Return model names that have a provider in the cache.

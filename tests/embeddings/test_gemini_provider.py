@@ -101,9 +101,7 @@ def test_embed_raises_on_permanent_error(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_health_check_true_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = _FakeClient(
-        [_FakeResponse(embeddings=[_FakeEmbeddingItem(values=[0.0, 0.0, 0.0])])]
-    )
+    fake = _FakeClient([_FakeResponse(embeddings=[_FakeEmbeddingItem(values=[0.0, 0.0, 0.0])])])
     embedder = _make_embedder(monkeypatch, fake)
     assert embedder.health_check() is True
 

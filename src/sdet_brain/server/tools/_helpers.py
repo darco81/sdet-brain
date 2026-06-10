@@ -18,32 +18,24 @@ class ToolError(RuntimeError):
 
 def require_storage(state: AppState) -> QdrantStorage:
     if state.storage is None:
-        raise ToolError(
-            state.qdrant_error or "Qdrant is not available; ingest cannot proceed."
-        )
+        raise ToolError(state.qdrant_error or "Qdrant is not available; ingest cannot proceed.")
     return state.storage
 
 
 def require_embedder(state: AppState) -> IEmbedder:
     if state.embedder is None:
-        raise ToolError(
-            state.embedder_error or "Embedder is not available; search cannot proceed."
-        )
+        raise ToolError(state.embedder_error or "Embedder is not available; search cannot proceed.")
     return state.embedder
 
 
 def source_type_filter(value: str | None) -> Filter | None:
     if not value:
         return None
-    return Filter(
-        must=[FieldCondition(key="source_type", match=MatchValue(value=value))]
-    )
+    return Filter(must=[FieldCondition(key="source_type", match=MatchValue(value=value))])
 
 
 def source_path_filter(value: str) -> Filter:
-    return Filter(
-        must=[FieldCondition(key="source_path", match=MatchValue(value=value))]
-    )
+    return Filter(must=[FieldCondition(key="source_path", match=MatchValue(value=value))])
 
 
 def collection_or_default(name: str | None = None) -> str:

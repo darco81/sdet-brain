@@ -11,14 +11,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from sdet_brain.cli.main_cli import _looks_like_path, main as dispatcher_main
+from sdet_brain.cli.main_cli import _looks_like_path
+from sdet_brain.cli.main_cli import main as dispatcher_main
 from sdet_brain.cli.search_cli import (
     _emit_json,
     _emit_text,
     _extract_slug,
     _extract_topic,
 )
-
 
 # ---------------------------------------------------------------------------
 # _extract_slug
@@ -165,8 +165,8 @@ class TestDispatcher:
 
     def test_dispatch_ingest_routes_to_ingest_main(self) -> None:
         with patch("sdet_brain.cli.ingest_cli.main", return_value=0) as mock_ingest:
-            result = dispatcher_main(["ingest", "/tmp/docs"])
-        mock_ingest.assert_called_once_with(["/tmp/docs"])
+            result = dispatcher_main(["ingest", "corpus/docs"])
+        mock_ingest.assert_called_once_with(["corpus/docs"])
         assert result == 0
 
     def test_dispatch_unknown_returns_1(self) -> None:

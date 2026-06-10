@@ -54,9 +54,7 @@ def _resolve_paths(args: argparse.Namespace, settings: Settings) -> list[Path]:
     raw = args.paths if args.paths is not None else settings.watch_paths
     paths = _split_paths(raw)
     if not paths:
-        raise SystemExit(
-            "no watch paths configured (pass --paths or set WATCH_PATHS in .env)"
-        )
+        raise SystemExit("no watch paths configured (pass --paths or set WATCH_PATHS in .env)")
     return paths
 
 
@@ -93,9 +91,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     selection = get_embedder(settings)
     if selection.fell_back:
-        logger.warning(
-            "Primary embedder unavailable, watcher running on %s", selection.provider
-        )
+        logger.warning("Primary embedder unavailable, watcher running on %s", selection.provider)
 
     with QdrantStorage(settings.qdrant_url, api_key=settings.qdrant_api_key) as storage:
         init_collections(storage, vector_size=selection.embedder.vector_size)

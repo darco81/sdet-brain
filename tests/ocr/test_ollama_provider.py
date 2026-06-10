@@ -59,9 +59,7 @@ def test_extract_text_base64_encodes_payload(
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post(
-        url: str, *, json: dict[str, Any], timeout: float
-    ) -> httpx.Response:
+    def fake_post(url: str, *, json: dict[str, Any], timeout: float) -> httpx.Response:
         captured["url"] = url
         captured["payload"] = json
         captured["timeout"] = timeout
@@ -92,7 +90,9 @@ def test_extract_text_strips_and_dedupes(
         "<|ref|>noisy<|/ref|><|det|>[[1,2]]<|/det|> Real data here"
     )
     monkeypatch.setattr(
-        httpx, "post", lambda *_a, **_kw: _ok_response({"response": raw}),
+        httpx,
+        "post",
+        lambda *_a, **_kw: _ok_response({"response": raw}),
     )
 
     result = engine.extract_text(b"img")
@@ -106,7 +106,9 @@ def test_extract_text_raises_quality_error_when_too_short(
     monkeypatch: pytest.MonkeyPatch, engine: OllamaOCREngine
 ) -> None:
     monkeypatch.setattr(
-        httpx, "post", lambda *_a, **_kw: _ok_response({"response": "hi"}),
+        httpx,
+        "post",
+        lambda *_a, **_kw: _ok_response({"response": "hi"}),
     )
 
     with pytest.raises(OCRQualityError) as excinfo:
@@ -152,9 +154,7 @@ def test_extract_text_passes_custom_prompt(
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post(
-        _url: str, *, json: dict[str, Any], timeout: float
-    ) -> httpx.Response:
+    def fake_post(_url: str, *, json: dict[str, Any], timeout: float) -> httpx.Response:
         _ = timeout
         captured["prompt"] = json["prompt"]
         return _ok_response({"response": "long enough output content here"})
@@ -215,7 +215,7 @@ def test_custom_host_strips_trailing_slash() -> None:
 
 
 def test_trailing_slash_host_produces_single_slash_request_url(
-    monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Regression: trailing-slash host must not leak into the request URL."""
     captured: dict[str, str] = {}

@@ -56,10 +56,7 @@ class _FakeEmbedder:
     model_name = "fake/dense"
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [
-            [(((hash(t) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for t in texts
-        ]
+        return [[(((hash(t) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for t in texts]
 
     def health_check(self) -> bool:
         return True
@@ -72,11 +69,7 @@ class _FakeSparse:
         out = []
         for t in texts:
             base = abs(hash(t))
-            out.append(
-                SparseV(
-                    indices=[base % 1024, (base + 1) % 1024], values=[1.0, 0.5]
-                )
-            )
+            out.append(SparseV(indices=[base % 1024, (base + 1) % 1024], values=[1.0, 0.5]))
         return out
 
     def health_check(self) -> bool:
@@ -261,11 +254,7 @@ def test_chat_sse_payload_is_valid_json_per_frame(client: TestClient) -> None:
         },
     ) as resp:
         body = b"".join(resp.iter_bytes()).decode()
-    frames = [
-        line[len("data: ") :]
-        for line in body.split("\n\n")
-        if line.startswith("data: ")
-    ]
+    frames = [line[len("data: ") :] for line in body.split("\n\n") if line.startswith("data: ")]
     assert frames
     for frame in frames:
         json.loads(frame)  # raises if any frame is malformed

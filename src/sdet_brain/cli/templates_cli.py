@@ -81,9 +81,7 @@ def _run_decisions(state: AppState, q: str, tpl: QueryTemplate, args: dict[str, 
     )
 
 
-def _run_sprint_reports(
-    state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]
-) -> str:
+def _run_sprint_reports(state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]) -> str:
     return search_sprint_reports(
         state,
         query=q,
@@ -92,9 +90,7 @@ def _run_sprint_reports(
     )
 
 
-def _run_articles(
-    state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]
-) -> str:
+def _run_articles(state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]) -> str:
     # `list_articles_by_status` doesn't take a query; it scrolls. The
     # rendered ``q`` is ignored to keep the tool surface honest.
     _ = q
@@ -105,21 +101,15 @@ def _run_articles(
     )
 
 
-def _run_query_rewrite(
-    state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]
-) -> str:
+def _run_query_rewrite(state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]) -> str:
     return query_rewrite(state, query=q, limit=int(args.get("limit", 5)))
 
 
-def _run_summarize(
-    state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]
-) -> str:
+def _run_summarize(state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]) -> str:
     return summarize_results(state, topic=q, limit=int(args.get("limit", 8)))
 
 
-def _run_multi_query(
-    state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]
-) -> str:
+def _run_multi_query(state: AppState, q: str, tpl: QueryTemplate, args: dict[str, Any]) -> str:
     return multi_query_search(
         state,
         query=q,

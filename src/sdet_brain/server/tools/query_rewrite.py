@@ -137,9 +137,7 @@ def _format(query: str, hypothetical: str, hits: list) -> str:  # type: ignore[t
             if chunk_index is not None and total_chunks is not None
             else ""
         )
-        lines.append(
-            f"## {index}. [{source_path}]{chunk_label} (score: {float(hit.score):.3f})"
-        )
+        lines.append(f"## {index}. [{source_path}]{chunk_label} (score: {float(hit.score):.3f})")
         heading = safe_str(payload, "heading_path")
         if heading:
             lines.append(f"_{heading}_")

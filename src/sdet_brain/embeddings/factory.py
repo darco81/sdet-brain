@@ -58,9 +58,7 @@ _BUILDERS: dict[EmbeddingProvider, EmbedderBuilder] = {
 }
 
 
-def _try_build(
-    provider: EmbeddingProvider, settings: Settings
-) -> IEmbedder | None:
+def _try_build(provider: EmbeddingProvider, settings: Settings) -> IEmbedder | None:
     builder = _BUILDERS[provider]
     try:
         candidate = builder(settings)

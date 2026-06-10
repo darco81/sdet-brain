@@ -36,15 +36,11 @@ def _named_vec(seed: int) -> dict[str, object]:
     """Hybrid named-vector payload: dense + tiny sparse stub."""
     return {
         "dense": _vec(seed),
-        "bm25": SparseVector(
-            indices=[seed % 32], values=[1.0]
-        ),
+        "bm25": SparseVector(indices=[seed % 32], values=[1.0]),
     }
 
 
-def test_ensure_collection_is_idempotent(
-    storage: QdrantStorage, temp_collection: str
-) -> None:
+def test_ensure_collection_is_idempotent(storage: QdrantStorage, temp_collection: str) -> None:
     created_first = storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     created_second = storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     assert created_first is True
@@ -60,9 +56,7 @@ def test_delete_collection_returns_correct_flag(
     assert storage.delete_collection(temp_collection) is False
 
 
-def test_hybrid_search_returns_fused_hits(
-    storage: QdrantStorage, temp_collection: str
-) -> None:
+def test_hybrid_search_returns_fused_hits(storage: QdrantStorage, temp_collection: str) -> None:
     storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     storage.upsert_points(
         temp_collection,
@@ -89,9 +83,7 @@ def test_hybrid_search_returns_fused_hits(
     assert hits[0].payload is not None
 
 
-def test_upsert_and_search_round_trip(
-    storage: QdrantStorage, temp_collection: str
-) -> None:
+def test_upsert_and_search_round_trip(storage: QdrantStorage, temp_collection: str) -> None:
     storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     points = [
         PointStruct(
@@ -139,7 +131,11 @@ def test_delete_by_filter_removes_only_matching_points(
     storage.delete_by_filter(
         temp_collection,
         Filter(
-            must=[FieldCondition(key="source_path", match=MatchValue(value="/var/sdet-brain-fixtures/drop.md"))]
+            must=[
+                FieldCondition(
+                    key="source_path", match=MatchValue(value="/var/sdet-brain-fixtures/drop.md")
+                )
+            ]
         ),
     )
     assert storage.count(temp_collection) == 3
@@ -175,7 +171,6 @@ def test_upsert_points_returns_written_count(
 ) -> None:
     storage.ensure_hybrid_collection(temp_collection, VECTOR_SIZE)
     points = [
-        PointStruct(id=str(uuid.uuid4()), vector=_named_vec(i), payload={})
-        for i in range(count)
+        PointStruct(id=str(uuid.uuid4()), vector=_named_vec(i), payload={}) for i in range(count)
     ]
     assert storage.upsert_points(temp_collection, points) == count

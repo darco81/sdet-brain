@@ -60,8 +60,7 @@ class _FakeEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [
-            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for text in texts
+            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for text in texts
         ]
 
     def health_check(self) -> bool:
@@ -99,9 +98,7 @@ def _patch_sparse_default(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def _make_watcher(
-    storage: QdrantStorage, collection: str, paths: list[Path]
-) -> BrainWatcher:
+def _make_watcher(storage: QdrantStorage, collection: str, paths: list[Path]) -> BrainWatcher:
     return BrainWatcher(
         paths,
         storage,
@@ -138,9 +135,7 @@ def test_is_relevant_path_rejects_node_modules() -> None:
 # ----------------------------------------------------------------------
 
 
-def test_debouncing_collapses_rapid_events(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_debouncing_collapses_rapid_events(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Five rapid `on_modified` events must result in one ingest call."""
     file_path = tmp_path / "doc.md"
     file_path.write_text("# Heading\n\nbody\n", encoding="utf-8")
@@ -238,9 +233,7 @@ def test_live_observer_reindexes_on_modify(
     with watcher:
         # Simulate a save by writing then triggering the worker manually
         # rather than waiting on FSEvents (more deterministic).
-        file_path.write_text(
-            "# Updated\n\n" + ("body " * 60), encoding="utf-8"
-        )
+        file_path.write_text("# Updated\n\n" + ("body " * 60), encoding="utf-8")
         watcher.on_modified(FileModifiedEvent(str(file_path)))
         # Force the debounce window past + run worker.
         import time as _time
