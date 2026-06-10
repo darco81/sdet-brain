@@ -9,10 +9,12 @@ than importing `app.state` directly so they remain testable.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, Request, status
+
+from sdet_brain.ingestion.source_classifier import SourceConfig
 
 if TYPE_CHECKING:
     from sdet_brain.config import Settings
@@ -30,6 +32,9 @@ class AppState:
     selection: EmbedderSelection | None
     qdrant_error: str | None = None
     embedder_error: str | None = None
+    # Built once from settings so server ingest (MCP tool + /ingest route)
+    # classifies re-ingested files instead of tagging them "unknown".
+    source_config: SourceConfig = field(default_factory=SourceConfig)
 
     @property
     def embedder(self) -> IEmbedder | None:

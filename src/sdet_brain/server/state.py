@@ -13,6 +13,7 @@ import logging
 from sdet_brain.config import Settings, get_settings
 from sdet_brain.embeddings.factory import get_embedder
 from sdet_brain.embeddings.protocol import EmbeddingError
+from sdet_brain.ingestion.source_classifier import build_source_config
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.storage.qdrant_client import QdrantStorage
 
@@ -27,7 +28,12 @@ def build_default_state(settings: Settings | None = None) -> AppState:
     the surviving routes / tools keep serving.
     """
     settings = settings or get_settings()
-    state = AppState(settings=settings, storage=None, selection=None)
+    state = AppState(
+        settings=settings,
+        storage=None,
+        selection=None,
+        source_config=build_source_config(settings),
+    )
     try:
         state.storage = QdrantStorage(
             settings.qdrant_url,

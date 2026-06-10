@@ -15,10 +15,9 @@ import threading
 from collections.abc import Sequence
 from pathlib import Path
 
-from sdet_brain.cli.ingest_cli import LOCAL_DEFAULT_PATHS
-from sdet_brain.config import Settings, get_settings, parse_path_list
+from sdet_brain.config import Settings, get_settings
 from sdet_brain.embeddings.factory import get_embedder
-from sdet_brain.ingestion.source_classifier import SourceConfig, default_source_config_from_mapping
+from sdet_brain.ingestion.source_classifier import build_source_config
 from sdet_brain.ingestion.watcher import BrainWatcher
 from sdet_brain.storage.collections import COLLECTION_NAME, init_collections
 from sdet_brain.storage.qdrant_client import QdrantStorage
@@ -58,27 +57,6 @@ def _resolve_paths(args: argparse.Namespace, settings: Settings) -> list[Path]:
     return paths
 
 
-def _default_source_config(settings: Settings) -> SourceConfig:
-    """Build the source classifier config, env-var overrides win.
-
-    Mirrors the logic in ``cli/ingest_cli._build_source_config`` so a
-    single ``.env`` controls both the watcher and the one-shot ingest
-    CLI. Empty env vars fall back to ``LOCAL_DEFAULT_PATHS``.
-    """
-    overrides = {
-        "project-knowledge": settings.project_knowledge_paths,
-        "drafts": settings.drafts_paths,
-        "articles": settings.articles_paths,
-        "sprint-reports": settings.sprint_reports_paths,
-        "brief": settings.brief_paths,
-    }
-    mapping: dict[str, list[str]] = {}
-    for source_type, raw in overrides.items():
-        configured = parse_path_list(raw)
-        mapping[source_type] = configured or LOCAL_DEFAULT_PATHS.get(source_type, [])
-    return default_source_config_from_mapping(mapping)
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     settings = get_settings()
     logging.basicConfig(
@@ -99,7 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             watch_paths,
             storage,
             selection.embedder,
-            source_config=_default_source_config(settings),
+            source_config=build_source_config(settings),
             collection=COLLECTION_NAME,
             debounce_ms=debounce_ms,
         )

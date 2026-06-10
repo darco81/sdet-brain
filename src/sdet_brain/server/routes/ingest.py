@@ -77,5 +77,6 @@ def post_ingest(
         exclude_dirs=tuple(Path(d) for d in body.exclude_dirs),
         ocr_engine=ocr_engine,
         settings=state.settings,
+        source_config=state.source_config,
     )
     return _to_response(stats)

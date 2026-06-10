@@ -47,6 +47,7 @@ def ingest_path(
         force_reindex=force,
         ocr_engine=ocr_engine,
         settings=state.settings,
+        source_config=state.source_config,
     )
     lines = [
         f"# Ingest summary for `{target}`",
