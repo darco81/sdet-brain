@@ -12,7 +12,21 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
+
+if TYPE_CHECKING:
+    from sdet_brain.config import Settings
+
+# Per source_type fallback when its env var is empty - "no configured root for
+# this source_type", so files outside all roots fall through to
+# source_type=unknown.
+LOCAL_DEFAULT_PATHS: Final[dict[str, list[str]]] = {
+    "project-knowledge": [],
+    "drafts": [],
+    "articles": [],
+    "sprint-reports": [],
+    "brief": [],
+}
 
 PROJECT_KNOWLEDGE_FILENAME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"^(\d{2}-PROJECT-CONTEXT|\d{2}-BRAND-STRATEGY|EXECUTION-PLAN|LINEAR-ISSUE-TEMPLATE)",
@@ -87,3 +101,29 @@ def default_source_config_from_mapping(mapping: Mapping[str, list[str]]) -> Sour
         sprint_reports_dirs=tuple(Path(p) for p in mapping.get("sprint-reports", [])),
         brief_dirs=tuple(Path(p) for p in mapping.get("brief", [])),
     )
+
+
+def build_source_config(settings: Settings) -> SourceConfig:
+    """Build the source-classifier config from runtime settings.
+
+    Each source_type reads its env var (``DRAFTS_PATHS`` etc.); an empty
+    value falls back to ``LOCAL_DEFAULT_PATHS`` (empty per source_type).
+    Single source of truth for the ingest CLI, the watcher, and the
+    server ingest paths so re-ingesting via MCP/HTTP classifies files the
+    same way the CLI does (rather than defaulting everything to
+    ``"unknown"``).
+    """
+    from sdet_brain.config import parse_path_list
+
+    overrides = {
+        "project-knowledge": settings.project_knowledge_paths,
+        "drafts": settings.drafts_paths,
+        "articles": settings.articles_paths,
+        "sprint-reports": settings.sprint_reports_paths,
+        "brief": settings.brief_paths,
+    }
+    mapping: dict[str, list[str]] = {}
+    for source_type, raw in overrides.items():
+        configured = parse_path_list(raw)
+        mapping[source_type] = configured or LOCAL_DEFAULT_PATHS.get(source_type, [])
+    return default_source_config_from_mapping(mapping)

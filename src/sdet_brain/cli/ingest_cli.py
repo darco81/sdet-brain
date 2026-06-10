@@ -17,31 +17,15 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from sdet_brain.config import Settings, get_settings, parse_path_list
+from sdet_brain.config import Settings, get_settings
 from sdet_brain.embeddings.factory import get_embedder
 from sdet_brain.ingestion.pipeline import (
     DEFAULT_BATCH_SIZE,
     ingest_path,
 )
-from sdet_brain.ingestion.source_classifier import (
-    SourceConfig,
-    default_source_config_from_mapping,
-)
+from sdet_brain.ingestion.source_classifier import build_source_config
 from sdet_brain.storage.collections import COLLECTION_NAME, init_collections
 from sdet_brain.storage.qdrant_client import QdrantStorage
-
-# Per-source-type root paths come from env vars only
-# (PROJECT_KNOWLEDGE_PATHS, DRAFTS_PATHS, ARTICLES_PATHS,
-# SPRINT_REPORTS_PATHS, BRIEF_PATHS). Empty env var means "no roots for
-# this source_type" - files outside all roots fall through to
-# source_type=unknown.
-LOCAL_DEFAULT_PATHS: dict[str, list[str]] = {
-    "project-knowledge": [],
-    "drafts": [],
-    "articles": [],
-    "sprint-reports": [],
-    "brief": [],
-}
 
 logger = logging.getLogger("sdet_brain.cli.ingest")
 
@@ -74,27 +58,6 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _build_source_config(settings: Settings) -> SourceConfig:
-    """Return the source-classifier config built from runtime settings.
-
-    Each source_type reads its env var (``DRAFTS_PATHS`` etc.). Empty
-    env var falls back to `LOCAL_DEFAULT_PATHS` (an empty list per
-    source_type by default).
-    """
-    mapping: dict[str, list[str]] = {}
-    overrides = {
-        "project-knowledge": settings.project_knowledge_paths,
-        "drafts": settings.drafts_paths,
-        "articles": settings.articles_paths,
-        "sprint-reports": settings.sprint_reports_paths,
-        "brief": settings.brief_paths,
-    }
-    for source_type, raw in overrides.items():
-        configured = parse_path_list(raw)
-        mapping[source_type] = configured or LOCAL_DEFAULT_PATHS.get(source_type, [])
-    return default_source_config_from_mapping(mapping)
-
-
 def _run(args: argparse.Namespace, settings: Settings) -> int:
     if not args.path.exists():
         print(f"ERROR: {args.path} does not exist", file=sys.stderr)
@@ -115,7 +78,7 @@ def _run(args: argparse.Namespace, settings: Settings) -> int:
             args.path,
             storage,
             selection.embedder,
-            source_config=_build_source_config(settings),
+            source_config=build_source_config(settings),
             collection=COLLECTION_NAME,
             batch_size=args.batch_size,
             force_reindex=args.force,

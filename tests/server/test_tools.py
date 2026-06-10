@@ -19,6 +19,7 @@ from qdrant_client.models import PointStruct, SparseVector
 from sdet_brain.config import Settings
 from sdet_brain.embeddings.factory import EmbedderSelection
 from sdet_brain.ingestion.pipeline import ingest_path as run_ingest
+from sdet_brain.ingestion.source_classifier import build_source_config
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools.get_chunk_neighbors import get_chunk_neighbors
 from sdet_brain.server.tools.ingest import ingest_path
@@ -252,6 +253,38 @@ def test_ingest_tool_routes_to_pipeline(state: AppState, collection: str, tmp_pa
     # Re-run via the pipeline to confirm the chunks landed.
     second = run_ingest(file_path, state.storage, state.embedder, collection=collection)  # type: ignore[arg-type]
     assert second.files_skipped == 1
+
+
+def test_ingest_tool_classifies_under_configured_root(
+    storage: QdrantStorage, collection: str, tmp_path: Path
+) -> None:
+    # Regression: a frontmatter-less markdown file under a configured drafts
+    # root must be tagged 'drafts', not 'unknown'. The server ingest tool used
+    # to drop SourceConfig, so classify_source fell back to 'unknown'.
+    drafts_dir = tmp_path / "drafts"
+    drafts_dir.mkdir()
+    file_path = drafts_dir / "notes.md"
+    file_path.write_text("# Notes\n\n" + ("body alpha " * 30), encoding="utf-8")
+
+    settings = Settings(drafts_paths=str(drafts_dir))
+    selection = EmbedderSelection(
+        embedder=_FakeEmbedder(),  # type: ignore[arg-type]
+        provider="mlx",
+        fell_back=False,
+        attempted=("mlx",),
+    )
+    state = AppState(
+        settings=settings,
+        storage=storage,
+        selection=selection,
+        source_config=build_source_config(settings),
+    )
+
+    ingest_path(state, path=str(file_path), collection=collection)
+
+    records, _ = storage.client.scroll(collection_name=collection, with_payload=True, limit=100)
+    source_types = {str(r.payload["source_type"]) for r in records if r.payload}
+    assert source_types == {"drafts"}
 
 
 def test_ingest_tool_rejects_missing_path(state: AppState) -> None:
