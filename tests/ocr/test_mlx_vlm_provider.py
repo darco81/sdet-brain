@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import platform
 import sys
 import types
 from pathlib import Path
@@ -11,6 +13,19 @@ import pytest
 
 from sdet_brain.ocr.mlx_vlm_provider import MLXVLMOCREngine
 from sdet_brain.ocr.protocol import OCRError, OCRQualityError, OCRResult
+
+# The engine lazy-imports mlx.core; these tests monkeypatch mlx-vlm but still
+# need the real mlx runtime, which only exists on Apple Silicon.
+mlx_vlm_available = (
+    sys.platform == "darwin"
+    and platform.machine() == "arm64"
+    and importlib.util.find_spec("mlx_vlm") is not None
+)
+
+pytestmark = pytest.mark.skipif(
+    not mlx_vlm_available,
+    reason="mlx-vlm only runs on Apple Silicon (darwin/arm64).",
+)
 
 
 class _FakeGenerationResult:

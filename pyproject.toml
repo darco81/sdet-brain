@@ -90,6 +90,7 @@ module = [
     "mlx.*",
     "mlx_embeddings.*",
     "mlx_vlm.*",
+    "mlx_lm.*",
     "pillow_heif.*",
     "pypdfium2.*",
 ]
