@@ -76,9 +76,7 @@ real prototype workbench:
 
 ## Knowledge graph hooks
 
-- Repository: `/Users/dariusz/dev/darco81/sdet-canvas`
-- Mirror (legacy): `/Users/dariusz/dev/dar-kow/sdet-canvas` (canonical
-  moved to darco81 path; GitHub redirect handles the URL alias)
-- Linear epic: SDE-245 (v0.4 multi-file + stages + council)
-- Sub-issues: SDE-246..SDE-252 (all closed)
+- Repository: `~/dev/<workspace>/sdet-canvas`
+- Internal tracker: epic + sub-issues for the v0.4 multi-file + stages +
+  council work (all closed)
 - Recent commits: `0b04d1c` backlog sweep, `8015226` audit wave 1

@@ -11,6 +11,7 @@ Run from repo root:
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -24,7 +25,8 @@ from sdet_brain.ingestion.image_parser import (
 )
 from sdet_brain.ocr.factory import get_ocr_engine, reset_ocr_engine
 
-DOWNLOADS = Path("/Users/dariusz/Downloads")
+# Override with SMOKE_DOWNLOADS=/path/to/samples; defaults to ~/Downloads.
+DOWNLOADS = Path(os.environ.get("SMOKE_DOWNLOADS", Path.home() / "Downloads"))
 
 # Curated picks — mix of formats and sizes so the factory + image_parser
 # exercise the EXIF / HEIC / JPEG / PDF code paths.

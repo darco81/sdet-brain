@@ -7,7 +7,7 @@ explicitly KEPT before flipping repo visibility from private to public.
 Mode 1 principle: **patterns and architecture stay; concrete brand
 content disappears or is replaced by generic placeholders**.
 
-## 1. Hardcoded `/Users/dariusz/...` paths
+## 1. Hardcoded `/Users/<user>/...` paths
 
 | File | Line(s) | Action | Replacement |
 | --- | --- | --- | --- |
