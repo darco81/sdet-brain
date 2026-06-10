@@ -18,6 +18,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --extra dev
+      - name: no home-path PII
+        run: ./scripts/check_no_pii.sh
       - name: ruff check
         run: uv run ruff check src tests
       - name: ruff format --check

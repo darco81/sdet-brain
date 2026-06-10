@@ -16,3 +16,9 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      - id: no-home-path-pii
+        name: no hardcoded home-path PII
+        entry: scripts/check_no_pii.sh
+        language: script
+        pass_filenames: false
+        always_run: true
