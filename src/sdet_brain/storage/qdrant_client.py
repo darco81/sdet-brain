@@ -70,7 +70,14 @@ class QdrantStorage:
         timeout: int = DEFAULT_TIMEOUT_S,
     ) -> None:
         self._url = url
-        self._client = QdrantClient(url=url, api_key=api_key, timeout=timeout)
+        # check_compatibility spawns a background probe thread; against an
+        # unreachable/slow server it raises in that thread, surfacing as a
+        # PytestUnhandledThreadExceptionWarning (-> error under
+        # filterwarnings=error) and flaky CI. We pin client/server versions
+        # via docker-compose, so the probe buys nothing - disable it.
+        self._client = QdrantClient(
+            url=url, api_key=api_key, timeout=timeout, check_compatibility=False
+        )
 
     @property
     def url(self) -> str:
