@@ -113,9 +113,7 @@ def parse_command(line: str, state: ReplState) -> CommandResult:
             _load_conversation(arg, state)
         except FileNotFoundError:
             return CommandResult(output=f"(no saved conversation named {arg!r})")
-        return CommandResult(
-            output=f"(loaded {len(state.messages)} messages from {arg!r})"
-        )
+        return CommandResult(output=f"(loaded {len(state.messages)} messages from {arg!r})")
     if cmd in ("/quit", "/exit"):
         return CommandResult(output="bye.", should_exit=True)
     return CommandResult(output=f"(unknown command {cmd!r}; try /help)")
@@ -202,9 +200,7 @@ def _run_turn(url: str, state: ReplState, body: str) -> None:
         return
     print()  # trailing newline
     if assembled:
-        state.messages.append(
-            {"role": "assistant", "content": "".join(assembled)}
-        )
+        state.messages.append({"role": "assistant", "content": "".join(assembled)})
     state.last_sources = sources
 
 

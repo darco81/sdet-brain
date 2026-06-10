@@ -65,8 +65,7 @@ class _FakeEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [
-            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for text in texts
+            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for text in texts
         ]
 
     def health_check(self) -> bool:
@@ -101,9 +100,7 @@ def _seed_chunks(
                 id=index + abs(hash(source_path)) % 1_000_000,
                 vector={
                     "dense": dense,
-                    "bm25": SparseVector(
-                        indices=[index, index + 1], values=[1.0, 0.5]
-                    ),
+                    "bm25": SparseVector(indices=[index, index + 1], values=[1.0, 0.5]),
                 },
                 payload={
                     "text": f"text body for chunk {index}",
@@ -139,7 +136,9 @@ def test_search_filters_by_source_type(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
     _seed_chunks(storage, collection, "/var/sdet-brain-fixtures/draft.md", 2, source_type="drafts")
-    _seed_chunks(state.storage, collection, "/var/sdet-brain-fixtures/article.md", 2, source_type="articles")  # type: ignore[arg-type]
+    _seed_chunks(
+        state.storage, collection, "/var/sdet-brain-fixtures/article.md", 2, source_type="articles"
+    )  # type: ignore[arg-type]
     drafts_only = search(
         state,
         query="draft",
@@ -182,7 +181,9 @@ def test_list_sources_filter_returns_only_one_type(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
     _seed_chunks(storage, collection, "/var/sdet-brain-fixtures/d.md", 2, source_type="drafts")
-    _seed_chunks(storage, collection, "/var/sdet-brain-fixtures/p.md", 1, source_type="project-knowledge")
+    _seed_chunks(
+        storage, collection, "/var/sdet-brain-fixtures/p.md", 1, source_type="project-knowledge"
+    )
     drafts = list_sources(state, source_type="drafts", collection=collection)
     assert "/var/sdet-brain-fixtures/d.md" in drafts
     assert "/var/sdet-brain-fixtures/p.md" not in drafts
@@ -242,9 +243,7 @@ def test_get_chunk_neighbors_clamps_at_total(
     assert "chunk 4/4" not in output
 
 
-def test_ingest_tool_routes_to_pipeline(
-    state: AppState, collection: str, tmp_path: Path
-) -> None:
+def test_ingest_tool_routes_to_pipeline(state: AppState, collection: str, tmp_path: Path) -> None:
     file_path = tmp_path / "tool_ingest.md"
     file_path.write_text("# Heading\n\nbody " + ("alpha " * 30), encoding="utf-8")
     output = ingest_path(state, path=str(file_path), collection=collection)

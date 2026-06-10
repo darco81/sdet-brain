@@ -79,8 +79,7 @@ class _FakeEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [
-            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for text in texts
+            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for text in texts
         ]
 
     def health_check(self) -> bool:
@@ -161,8 +160,12 @@ def _seed_chunk(
 def test_voice_samples_filters_to_category(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
-    _seed_chunk(storage, collection, "/v/voice.md", text="self-deprecating opener", category="voice-sample")
-    _seed_chunk(storage, collection, "/v/draft.md", text="self-deprecating opener", category="draft")
+    _seed_chunk(
+        storage, collection, "/v/voice.md", text="self-deprecating opener", category="voice-sample"
+    )
+    _seed_chunk(
+        storage, collection, "/v/draft.md", text="self-deprecating opener", category="draft"
+    )
     output = search_voice_samples(state, topic="opener", limit=5, collection=collection)
     assert "voice.md" in output
     assert "draft.md" not in output
@@ -173,9 +176,7 @@ def test_voice_samples_empty_query_raises(state: AppState, collection: str) -> N
         search_voice_samples(state, topic="  ", collection=collection)
 
 
-def test_voice_samples_no_matches_message(
-    state: AppState, collection: str
-) -> None:
+def test_voice_samples_no_matches_message(state: AppState, collection: str) -> None:
     output = search_voice_samples(state, topic="anything", collection=collection)
     assert "No voice samples match" in output
 
@@ -186,8 +187,17 @@ def test_voice_samples_no_matches_message(
 def test_smaczki_filters_to_category(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
-    _seed_chunk(storage, collection, "/s/smaczki.md", text="zinger about flaky tests", category="smaczki", series="wcag-toolkit")
-    _seed_chunk(storage, collection, "/s/case.md", text="zinger about flaky tests", category="case-study")
+    _seed_chunk(
+        storage,
+        collection,
+        "/s/smaczki.md",
+        text="zinger about flaky tests",
+        category="smaczki",
+        series="wcag-toolkit",
+    )
+    _seed_chunk(
+        storage, collection, "/s/case.md", text="zinger about flaky tests", category="case-study"
+    )
     output = search_smaczki(state, topic="flaky tests", limit=5, collection=collection)
     assert "smaczki.md" in output
     assert "case.md" not in output
@@ -199,16 +209,18 @@ def test_smaczki_filters_to_category(
 def test_decisions_filters_to_category(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
-    _seed_chunk(storage, collection, "/d/decision.md", text="we decided not to mock", category="decision")
-    _seed_chunk(storage, collection, "/d/sprint.md", text="we decided not to mock", category="sprint-report")
+    _seed_chunk(
+        storage, collection, "/d/decision.md", text="we decided not to mock", category="decision"
+    )
+    _seed_chunk(
+        storage, collection, "/d/sprint.md", text="we decided not to mock", category="sprint-report"
+    )
     output = search_decisions(state, topic="mock", limit=5, collection=collection)
     assert "decision.md" in output
     assert "sprint.md" not in output
 
 
-def test_decisions_since_filter(
-    state: AppState, collection: str, storage: QdrantStorage
-) -> None:
+def test_decisions_since_filter(state: AppState, collection: str, storage: QdrantStorage) -> None:
     _seed_chunk(
         storage,
         collection,
@@ -282,12 +294,22 @@ def test_articles_by_status_with_series_filter(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
     _seed_chunk(
-        storage, collection, "/a/wcag.md",
-        text="wcag", category="case-study", status="draft", series="wcag-toolkit",
+        storage,
+        collection,
+        "/a/wcag.md",
+        text="wcag",
+        category="case-study",
+        status="draft",
+        series="wcag-toolkit",
     )
     _seed_chunk(
-        storage, collection, "/a/jarvis.md",
-        text="jarvis", category="case-study", status="draft", series="jarvis-brain",
+        storage,
+        collection,
+        "/a/jarvis.md",
+        text="jarvis",
+        category="case-study",
+        status="draft",
+        series="jarvis-brain",
     )
     output = list_articles_by_status(
         state, status="draft", series="wcag-toolkit", collection=collection
@@ -313,12 +335,19 @@ def test_sprint_reports_filters_to_category(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
     _seed_chunk(
-        storage, collection, "/sr/wed.md",
-        text="deploy outcome", category="sprint-report", series="case-study-01",
+        storage,
+        collection,
+        "/sr/wed.md",
+        text="deploy outcome",
+        category="sprint-report",
+        series="case-study-01",
     )
     _seed_chunk(
-        storage, collection, "/sr/draft.md",
-        text="deploy outcome", category="draft",
+        storage,
+        collection,
+        "/sr/draft.md",
+        text="deploy outcome",
+        category="draft",
     )
     output = search_sprint_reports(state, query="deploy", limit=5, collection=collection)
     assert "wed.md" in output
@@ -329,12 +358,20 @@ def test_sprint_reports_project_filter(
     state: AppState, collection: str, storage: QdrantStorage
 ) -> None:
     _seed_chunk(
-        storage, collection, "/sr/wcag.md",
-        text="wcag sprint", category="sprint-report", series="wcag-toolkit",
+        storage,
+        collection,
+        "/sr/wcag.md",
+        text="wcag sprint",
+        category="sprint-report",
+        series="wcag-toolkit",
     )
     _seed_chunk(
-        storage, collection, "/sr/example.md",
-        text="wcag sprint", category="sprint-report", series="case-study-01",
+        storage,
+        collection,
+        "/sr/example.md",
+        text="wcag sprint",
+        category="sprint-report",
+        series="case-study-01",
     )
     output = search_sprint_reports(
         state, query="sprint", project="wcag-toolkit", limit=5, collection=collection

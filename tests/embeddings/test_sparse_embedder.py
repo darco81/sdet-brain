@@ -26,9 +26,7 @@ from sdet_brain.embeddings.sparse_embedder import (
 @pytest.fixture(autouse=True)
 def _clear_factory_cache() -> None:
     """Reset the factory cache between tests so each starts cold."""
-    cached_builder = getattr(
-        sparse_embedder_module, "_build_sparse_embedder", None
-    )
+    cached_builder = getattr(sparse_embedder_module, "_build_sparse_embedder", None)
     cache_clear = getattr(cached_builder, "cache_clear", None)
     if cache_clear is not None:
         cache_clear()
@@ -68,9 +66,7 @@ def test_factory_constructs_underlying_class_once_per_model(
     construct_count = 0
     original_init = FastembedBM25.__init__
 
-    def counting_init(
-        self: FastembedBM25, *args: object, **kwargs: object
-    ) -> None:
+    def counting_init(self: FastembedBM25, *args: object, **kwargs: object) -> None:
         nonlocal construct_count
         construct_count += 1
         original_init(self, *args, **kwargs)  # type: ignore[arg-type]

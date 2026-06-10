@@ -82,7 +82,8 @@ class OllamaOCREngine:
         """
         try:
             response = httpx.get(
-                f"{self._host}/api/tags", timeout=_HEALTH_TIMEOUT_S,
+                f"{self._host}/api/tags",
+                timeout=_HEALTH_TIMEOUT_S,
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
@@ -98,14 +99,14 @@ class OllamaOCREngine:
             # the factory boot. Surface as a normal health failure so
             # the chain can fall back.
             logger.warning(
-                "Ollama host %r is not a valid URL: %s", self._host, exc,
+                "Ollama host %r is not a valid URL: %s",
+                self._host,
+                exc,
             )
             return False
         return True
 
-    def extract_text(
-        self, image_bytes: bytes, *, prompt: str | None = None
-    ) -> OCRResult:
+    def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
         if not image_bytes:
             raise OCRError("Empty image_bytes — nothing to OCR.")
 
@@ -129,8 +130,7 @@ class OllamaOCREngine:
             response.raise_for_status()
         except httpx.TimeoutException as exc:
             raise OCRTimeoutError(
-                f"Ollama OCR call exceeded {self._timeout_seconds}s "
-                f"(model={self._model_tag!r}).",
+                f"Ollama OCR call exceeded {self._timeout_seconds}s (model={self._model_tag!r}).",
             ) from exc
         except httpx.HTTPError as exc:
             raise OCRError(

@@ -61,10 +61,7 @@ class _FakeEmbedder:
     model_name = "fake/dense"
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [
-            [(((hash(t) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for t in texts
-        ]
+        return [[(((hash(t) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for t in texts]
 
     def health_check(self) -> bool:
         return True
@@ -250,9 +247,7 @@ def test_multi_query_search_runs_decompose_and_returns_decomposition_in_output(
     assert "portfolio deploy" in out
 
 
-def test_multi_query_search_empty_query_raises(
-    state: AppState, collection: str
-) -> None:
+def test_multi_query_search_empty_query_raises(state: AppState, collection: str) -> None:
     with pytest.raises(ToolError):
         multi_query_search(state, query="   ", collection=collection)
 

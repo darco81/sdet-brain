@@ -24,9 +24,7 @@ class _FakeLLM:
         self.calls: list[str] = []
         self._loaded = False
 
-    def generate(
-        self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.7
-    ) -> str:
+    def generate(self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.7) -> str:
         if not prompt.strip():
             raise LLMError("prompt empty")
         self._loaded = True

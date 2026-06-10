@@ -57,8 +57,8 @@ def test_rerank_reorders_by_score_and_truncates() -> None:
     rr = _build_reranker()
     candidates = [
         RerankCandidate(text="apple banana cherry", payload="A"),  # 1 match
-        RerankCandidate(text="banana orange", payload="B"),         # 0 match
-        RerankCandidate(text="apple", payload="C"),                 # 1 match
+        RerankCandidate(text="banana orange", payload="B"),  # 0 match
+        RerankCandidate(text="apple", payload="C"),  # 1 match
     ]
     results = rr.rerank("apple", candidates, top_k=2)
     assert len(results) == 2

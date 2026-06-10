@@ -26,9 +26,7 @@ class _StubOCREngine:
     def model_name(self) -> str:
         return self._model_name
 
-    def extract_text(
-        self, image_bytes: bytes, *, prompt: str | None = None
-    ) -> OCRResult:
+    def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
         _ = image_bytes
         _ = prompt
         return OCRResult(text="stub", model=self._model_name, duration_s=0.001)
@@ -173,6 +171,7 @@ def test_builder_unexpected_exception_still_falls_back(
 ) -> None:
     """An unexpected exception in a builder (e.g. ConnectionError, OSError)
     must NOT crash the chain — `_try_build` logs and tries the next link."""
+
     def boom_builder(_: Settings, _model: str) -> _StubOCREngine:
         raise ConnectionError("simulated network blip during builder init")
 
@@ -188,6 +187,7 @@ def test_health_check_exception_treated_as_unhealthy(
 ) -> None:
     """If health_check() itself raises, the engine is treated as unhealthy
     rather than crashing the factory."""
+
     def fragile_builder(_: Settings, model: str) -> _StubOCREngine:
         engine = _StubOCREngine(model_name=model, healthy=True)
 

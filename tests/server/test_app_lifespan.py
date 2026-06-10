@@ -14,9 +14,7 @@ from sdet_brain.config import Settings
 from sdet_brain.server.app import _build_state, create_app
 
 
-@pytest.mark.filterwarnings(
-    "ignore::pytest.PytestUnhandledThreadExceptionWarning"
-)
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_build_state_does_not_crash_when_qdrant_unreachable() -> None:
     # qdrant-client launches a background compatibility probe that will
     # fail when the URL has no listener; the warning is harmless for

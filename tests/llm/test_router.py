@@ -174,6 +174,7 @@ def test_cache_evicts_lru_when_full_size_one(
     assert second.is_loaded is True
     assert list(router._cache.keys()) == ["model-b"]
 
+
 def test_cache_respects_configured_size(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -192,6 +193,7 @@ def test_cache_respects_configured_size(
     assert b.is_loaded is True
     assert c.is_loaded is True
     assert list(router._cache.keys()) == ["model-b", "model-c"]
+
 
 def test_cache_lru_touch_on_reuse(
     monkeypatch: pytest.MonkeyPatch,

@@ -64,9 +64,7 @@ def _looks_like_table(buffer: list[str], next_line: str) -> bool:
     """
     if not buffer:
         return False
-    return buffer[-1].lstrip().startswith("|") and bool(
-        TABLE_SEPARATOR_PATTERN.match(next_line)
-    )
+    return buffer[-1].lstrip().startswith("|") and bool(TABLE_SEPARATOR_PATTERN.match(next_line))
 
 
 def _flush_paragraph(buffer: list[str]) -> _Block | None:
@@ -122,8 +120,10 @@ def _iter_blocks(body: str) -> Iterator[_Block]:
             continue
 
         # Table: pipe row followed (next line) by separator row.
-        if line.lstrip().startswith("|") and i + 1 < len(lines) and TABLE_SEPARATOR_PATTERN.match(
-            lines[i + 1]
+        if (
+            line.lstrip().startswith("|")
+            and i + 1 < len(lines)
+            and TABLE_SEPARATOR_PATTERN.match(lines[i + 1])
         ):
             flushed = _flush_paragraph(paragraph)
             if flushed is not None:
@@ -214,11 +214,7 @@ def _merge_small_tails(
         small_enough = len(text) < threshold
         prev_size = len(merged_texts[-1])
         combined_size = prev_size + len(text) + 2  # join "\n\n"
-        can_merge = (
-            small_enough
-            and not prev_has_code
-            and combined_size <= upper_bound
-        )
+        can_merge = small_enough and not prev_has_code and combined_size <= upper_bound
         if can_merge:
             merged_texts[-1] = f"{merged_texts[-1]}\n\n{text}"
             # heading + has_code stay as previous chunk's

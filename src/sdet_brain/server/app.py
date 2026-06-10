@@ -60,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # The state-getter resolves at call time because the FastAPI app
     # is constructed below.
     app_holder: dict[str, FastAPI] = {}
+
     def _state_getter() -> object:
         host = app_holder.get("app")
         if host is None:

@@ -138,18 +138,14 @@ def render_query(template: QueryTemplate, **variables: Any) -> str:
     """
     merged = {**template.default_args, **variables}
     try:
-        return Template(template.query_template, undefined=StrictUndefined).render(
-            **merged
-        )
+        return Template(template.query_template, undefined=StrictUndefined).render(**merged)
     except UndefinedError as exc:
         raise TemplateError(
             f"Missing required variable for template {template.name!r}: {exc}"
         ) from exc
 
 
-def format_output(
-    fmt: OutputFormat, body: str, sources: list[str] | None = None
-) -> str:
+def format_output(fmt: OutputFormat, body: str, sources: list[str] | None = None) -> str:
     """Render the tool's Markdown body in the requested ``output_format``.
 
     The brain's MCP tools all return Markdown. ``json`` and ``text``

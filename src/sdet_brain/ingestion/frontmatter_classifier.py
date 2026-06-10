@@ -111,11 +111,7 @@ def _classify_category(stem_upper: str, stem: str) -> tuple[Category, str]:
         return "decision", "filename indicates a verdict/policy/decision"
     if "SPRINT-REPORT" in stem_upper or stem_upper.endswith("REPORT"):
         return "sprint-report", "filename indicates a sprint report"
-    if (
-        "PROMPT" in stem_upper
-        or stem_upper.startswith("CC-")
-        or stem_upper.startswith("WRITE-UP")
-    ):
+    if "PROMPT" in stem_upper or stem_upper.startswith("CC-") or stem_upper.startswith("WRITE-UP"):
         return "prompt", "filename indicates a CC prompt"
     if _CASE_STUDY.match(stem):
         return "case-study", "filename matches case-study-NN-*"

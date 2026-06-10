@@ -16,9 +16,7 @@ from sdet_brain.server.tools._helpers import (
 )
 from sdet_brain.storage.qdrant_client import QdrantStorage
 
-_ALLOWED_STATUSES: Final[frozenset[str]] = frozenset(
-    {"draft", "review", "published", "archive"}
-)
+_ALLOWED_STATUSES: Final[frozenset[str]] = frozenset({"draft", "review", "published", "archive"})
 _SCROLL_PAGE: Final[int] = 256
 
 
@@ -37,9 +35,7 @@ def list_articles_by_status(
     chunk.
     """
     if status not in _ALLOWED_STATUSES:
-        raise ToolError(
-            f"status must be one of {sorted(_ALLOWED_STATUSES)}, got {status!r}"
-        )
+        raise ToolError(f"status must be one of {sorted(_ALLOWED_STATUSES)}, got {status!r}")
 
     storage = require_storage(state)
     collection_name = collection_or_default(collection)
@@ -99,9 +95,7 @@ def _scroll_and_group(
     return _format(status, series, by_path)
 
 
-def _format(
-    status: str, series: str | None, by_path: dict[str, dict[str, Any]]
-) -> str:
+def _format(status: str, series: str | None, by_path: dict[str, dict[str, Any]]) -> str:
     series_suffix = f", series={series}" if series else ""
     if not by_path:
         return f"No case-study articles with status={status}{series_suffix}.\n"

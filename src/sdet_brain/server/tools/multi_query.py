@@ -184,9 +184,7 @@ def multi_query_search(
     return _format(query, sub_queries, fused)
 
 
-def _format(
-    original: str, sub_queries: list[str], hits: list[ScoredPoint]
-) -> str:
+def _format(original: str, sub_queries: list[str], hits: list[ScoredPoint]) -> str:
     lines = [
         f"# multi_query_search for `{original}`",
         "",
@@ -211,9 +209,7 @@ def _format(
             if chunk_index is not None and total_chunks is not None
             else ""
         )
-        lines.append(
-            f"## {index}. [{source_path}]{chunk_label} (rrf: {float(hit.score):.4f})"
-        )
+        lines.append(f"## {index}. [{source_path}]{chunk_label} (rrf: {float(hit.score):.4f})")
         heading = safe_str(payload, "heading_path")
         if heading:
             lines.append(f"_{heading}_")

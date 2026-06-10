@@ -129,9 +129,7 @@ def _resolve_chain(settings: Settings) -> list[tuple[OCRProvider, str]]:
     return chain
 
 
-def _try_build(
-    provider: OCRProvider, model: str, settings: Settings
-) -> IOCREngine | None:
+def _try_build(provider: OCRProvider, model: str, settings: Settings) -> IOCREngine | None:
     builder = _BUILDERS[provider]
     try:
         candidate = builder(settings, model)

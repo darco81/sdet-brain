@@ -88,9 +88,7 @@ def summarize_results(
         f"{safe_str(dict(hit.payload or {}), 'text')}"
         for idx, hit in enumerate(hits, start=1)
     ]
-    user_payload = (
-        f"Topic: {topic}\n\nPassages:\n" + "\n\n".join(passages)
-    )
+    user_payload = f"Topic: {topic}\n\nPassages:\n" + "\n\n".join(passages)
     try:
         summary = (
             get_router()

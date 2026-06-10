@@ -59,9 +59,7 @@ class SearchRequest(BaseModel):
     score_threshold: float | None = None
     rerank: bool | None = Field(
         default=None,
-        description=(
-            "Override RERANK_ENABLED for this request. None = use settings default."
-        ),
+        description=("Override RERANK_ENABLED for this request. None = use settings default."),
     )
     hybrid: bool = Field(
         default=True,
@@ -95,9 +93,7 @@ def _build_filter(source_type_filter: str | None) -> Filter | None:
     if not source_type_filter:
         return None
     return Filter(
-        must=[
-            FieldCondition(key="source_type", match=MatchValue(value=source_type_filter))
-        ]
+        must=[FieldCondition(key="source_type", match=MatchValue(value=source_type_filter))]
     )
 
 
@@ -107,11 +103,19 @@ def _point_to_item(point: object) -> SearchResultItem:
         id=str(getattr(point, "id", "")),
         score=float(getattr(point, "score", 0.0)),
         source_path=str(payload.get("source_path", "")),
-        source_type=payload.get("source_type") if isinstance(payload.get("source_type"), str) else None,
-        heading_path=payload.get("heading_path") if isinstance(payload.get("heading_path"), str) else None,
+        source_type=payload.get("source_type")
+        if isinstance(payload.get("source_type"), str)
+        else None,
+        heading_path=payload.get("heading_path")
+        if isinstance(payload.get("heading_path"), str)
+        else None,
         text=str(payload.get("text", "")),
-        chunk_index=payload.get("chunk_index") if isinstance(payload.get("chunk_index"), int) else None,
-        total_chunks=payload.get("total_chunks") if isinstance(payload.get("total_chunks"), int) else None,
+        chunk_index=payload.get("chunk_index")
+        if isinstance(payload.get("chunk_index"), int)
+        else None,
+        total_chunks=payload.get("total_chunks")
+        if isinstance(payload.get("total_chunks"), int)
+        else None,
     )
 
 
@@ -125,9 +129,7 @@ def post_search(
     rerank_active = body.rerank if body.rerank is not None else settings.rerank_enabled
     # When reranking, over-fetch from Qdrant so the cross-encoder has a
     # broader candidate set to re-rank from. Else honour the request limit.
-    fetch_limit = (
-        max(body.limit, settings.rerank_top_k_retrieve) if rerank_active else body.limit
-    )
+    fetch_limit = max(body.limit, settings.rerank_top_k_retrieve) if rerank_active else body.limit
 
     vectors = embedder.embed([body.query])
     if not vectors:

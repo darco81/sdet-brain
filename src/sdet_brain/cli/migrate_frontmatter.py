@@ -93,9 +93,7 @@ def _iter_md(root: Path) -> list[Path]:
     if root.is_file():
         return [root] if root.suffix.lower() == ".md" else []
     return sorted(
-        p
-        for p in root.rglob("*.md")
-        if not any(part.startswith(".") for part in p.parts)
+        p for p in root.rglob("*.md") if not any(part.startswith(".") for part in p.parts)
     )
 
 

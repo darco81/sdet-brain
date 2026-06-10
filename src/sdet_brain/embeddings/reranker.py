@@ -111,9 +111,7 @@ class FastembedReranker:
                     raise RerankerError(
                         "fastembed is not installed; cannot load reranker."
                     ) from exc
-                logger.info(
-                    "Loading cross-encoder reranker %s (lazy)", self._model_name
-                )
+                logger.info("Loading cross-encoder reranker %s (lazy)", self._model_name)
                 self._encoder = TextCrossEncoder(model_name=self._model_name)
         assert self._encoder is not None  # noqa: S101 - lock guarantees this
         return self._encoder
@@ -138,8 +136,7 @@ class FastembedReranker:
 
         if len(raw_scores) != len(candidates):
             raise RerankerError(
-                f"Reranker returned {len(raw_scores)} scores for "
-                f"{len(candidates)} candidates."
+                f"Reranker returned {len(raw_scores)} scores for {len(candidates)} candidates."
             )
 
         results = [

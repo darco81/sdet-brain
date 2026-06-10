@@ -64,8 +64,7 @@ class _FakeEmbedder:
     def embed(self, texts: list[str]) -> list[list[float]]:
         self.calls.append(list(texts))
         return [
-            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for text in texts
+            [(((hash(text) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for text in texts
         ]
 
     def health_check(self) -> bool:

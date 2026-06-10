@@ -61,10 +61,7 @@ class _FakeEmbedder:
     model_name = "fake/dense"
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [
-            [(((hash(t) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)]
-            for t in texts
-        ]
+        return [[(((hash(t) >> i) & 0xFF) / 255.0) for i in range(VECTOR_SIZE)] for t in texts]
 
     def health_check(self) -> bool:
         return True
@@ -77,9 +74,7 @@ class _FakeLLM:
     def __init__(self, response: str = "FAKE_LLM_REPLY") -> None:
         self._response = response
 
-    def generate(
-        self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.7
-    ) -> str:
+    def generate(self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.7) -> str:
         self.last_prompt = prompt
         return self._response
 
@@ -115,11 +110,7 @@ class _FakeSparse:
         out = []
         for t in texts:
             base = abs(hash(t))
-            out.append(
-                SparseVector(
-                    indices=[base % 1024, (base + 1) % 1024], values=[1.0, 0.5]
-                )
-            )
+            out.append(SparseVector(indices=[base % 1024, (base + 1) % 1024], values=[1.0, 0.5]))
         return out
 
     def health_check(self) -> bool:
@@ -150,7 +141,9 @@ def _patch_llm_and_sparse(monkeypatch: pytest.MonkeyPatch) -> _FakeLLM:
             return fake_llm.generate(prompt, max_tokens=max_tokens, temperature=temperature)
 
         def chat_stream(self, messages, *, task="chat", max_tokens=512, temperature=0.7):  # type: ignore[no-untyped-def]
-            yield from fake_llm.chat_stream(messages, max_tokens=max_tokens, temperature=temperature)
+            yield from fake_llm.chat_stream(
+                messages, max_tokens=max_tokens, temperature=temperature
+            )
 
         def get(self, task):  # type: ignore[no-untyped-def]
             return fake_llm
@@ -217,16 +210,12 @@ def test_query_rewrite_uses_llm_hypothetical(
     assert "hypothetical body about chunks" in out
 
 
-def test_query_rewrite_empty_query_raises(
-    state: AppState, collection: str
-) -> None:
+def test_query_rewrite_empty_query_raises(state: AppState, collection: str) -> None:
     with pytest.raises(ToolError):
         query_rewrite(state, query="  ", collection=collection)
 
 
-def test_query_rewrite_no_matches_message(
-    state: AppState, collection: str
-) -> None:
+def test_query_rewrite_no_matches_message(state: AppState, collection: str) -> None:
     out = query_rewrite(state, query="nothing seeded", collection=collection)
     assert "No matches" in out
 
@@ -252,8 +241,6 @@ def test_summarize_empty_topic_raises(state: AppState, collection: str) -> None:
         summarize_results(state, topic="", collection=collection)
 
 
-def test_summarize_no_matches_message(
-    state: AppState, collection: str
-) -> None:
+def test_summarize_no_matches_message(state: AppState, collection: str) -> None:
     out = summarize_results(state, topic="nothing seeded", collection=collection)
     assert "No matches" in out

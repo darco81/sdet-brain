@@ -56,7 +56,11 @@ def get_health(state: AppState = Depends(get_state)) -> HealthResponse:
     qdrant_ok, collection_count, qdrant_err = _qdrant_summary(state)
     embedder_ok, embedder_err = _embedder_summary(state)
     overall: HealthStatus = (
-        "ok" if (qdrant_ok and embedder_ok) else "degraded" if (qdrant_ok or embedder_ok) else "unavailable"
+        "ok"
+        if (qdrant_ok and embedder_ok)
+        else "degraded"
+        if (qdrant_ok or embedder_ok)
+        else "unavailable"
     )
     selection = state.selection
     return HealthResponse(

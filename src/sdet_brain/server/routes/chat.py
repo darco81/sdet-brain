@@ -58,9 +58,7 @@ def _build_pipeline(
     )
 
 
-def _sse_iter(
-    stream: Iterator[str], sources: list[Source], retrieved_count: int
-) -> Iterator[str]:
+def _sse_iter(stream: Iterator[str], sources: list[Source], retrieved_count: int) -> Iterator[str]:
     """Wrap the LLM token stream in SSE frames + a final metadata frame.
 
     The terminal frame ships the structured ``Source`` list so clients
@@ -105,6 +103,4 @@ def post_chat(
             media_type="text/event-stream",
         )
     reply, sources, retrieved = pipeline.respond(body)
-    return ChatResponse(
-        reply=reply, sources=sources, retrieved_chunk_count=retrieved
-    )
+    return ChatResponse(reply=reply, sources=sources, retrieved_chunk_count=retrieved)

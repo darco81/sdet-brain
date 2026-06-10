@@ -125,13 +125,9 @@ class QdrantStorage:
         self._client.create_collection(
             collection_name=name,
             vectors_config={
-                dense_name: VectorParams(
-                    size=dense_vector_size, distance=dense_distance
-                )
+                dense_name: VectorParams(size=dense_vector_size, distance=dense_distance)
             },
-            sparse_vectors_config={
-                sparse_name: SparseVectorParams(modifier=Modifier.IDF)
-            },
+            sparse_vectors_config={sparse_name: SparseVectorParams(modifier=Modifier.IDF)},
         )
         return True
 

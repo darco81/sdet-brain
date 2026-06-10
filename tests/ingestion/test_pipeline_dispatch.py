@@ -29,9 +29,7 @@ class _StubOCREngine:
     def model_name(self) -> str:
         return self._model_name
 
-    def extract_text(
-        self, image_bytes: bytes, *, prompt: str | None = None
-    ) -> OCRResult:
+    def extract_text(self, image_bytes: bytes, *, prompt: str | None = None) -> OCRResult:
         _ = image_bytes, prompt
         return OCRResult(text="stub", model=self._model_name, duration_s=0.001)
 
@@ -123,9 +121,7 @@ def test_maybe_build_returns_engine_for_mixed_dir(
     assert patched_builders["build_calls"] >= 1
 
 
-def test_maybe_build_singleton_within_run(
-    tmp_path: Path, patched_builders: dict[str, Any]
-) -> None:
+def test_maybe_build_singleton_within_run(tmp_path: Path, patched_builders: dict[str, Any]) -> None:
     """Two calls in a row return the same cached engine (factory singleton)."""
     (tmp_path / "scan.pdf").write_bytes(b"%PDF fake")
 
@@ -179,7 +175,9 @@ def test_memory_error_aborts_ingest_run(
             return True
 
     monkeypatch.setattr(
-        pipeline_module, "get_sparse_embedder", lambda: _FakeEmbedder(),
+        pipeline_module,
+        "get_sparse_embedder",
+        lambda: _FakeEmbedder(),
     )
 
     image = tmp_path / "explode.png"
@@ -232,7 +230,9 @@ def test_per_file_ocr_error_appended_to_stats_errors(
             return True
 
     monkeypatch.setattr(
-        pipeline_module, "get_sparse_embedder", lambda: _FakeEmbedder(),
+        pipeline_module,
+        "get_sparse_embedder",
+        lambda: _FakeEmbedder(),
     )
 
     image = tmp_path / "bad.png"
