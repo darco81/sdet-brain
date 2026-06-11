@@ -9,6 +9,7 @@ problems.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 from collections.abc import AsyncIterator
@@ -49,6 +50,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         if state.storage is not None:
             state.storage.close()
+        # Close any long-lived component that owns a client (duck-typed): the
+        # embedder may hold a pooled httpx/google-genai client. Storage is
+        # closed above; everything else with a close() is released here.
+        embedder = state.embedder
+        close = getattr(embedder, "close", None)
+        if callable(close):
+            with contextlib.suppress(Exception):
+                close()
         logger.info("Server shutdown complete")
 
 
