@@ -6,6 +6,7 @@ See `.env.example` for the full list of supported variables.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -263,11 +264,13 @@ def parse_path_list(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return a cached Settings instance.
+    """Return a process-wide cached Settings instance.
 
-    The function is intentionally a thin wrapper so callers can monkeypatch
-    it in tests without poking at the global module state.
+    Caching means the ``.env`` / environment is parsed once, not on every
+    ``Depends(get_settings)`` call. Call ``get_settings.cache_clear()`` in
+    tests that need to observe changed environment between constructions.
     """
     return Settings()
 
