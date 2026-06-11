@@ -1,9 +1,13 @@
 """Google Gemini embedding provider used as the cloud fallback.
 
 Wraps `google-genai`'s ``Client.models.embed_content`` with retries and
-exponential backoff via ``tenacity``. Gemini Flash text-embedding-004
-returns 768-dim vectors - mismatched with the MLX 1024-dim default, so
-the application configures Qdrant per-environment.
+exponential backoff via ``tenacity``. Uses ``gemini-embedding-001`` and
+requests ``output_dimensionality`` equal to the configured vector size
+(1024 by default, matching the MLX collection) so the fallback writes
+vectors compatible with the live Qdrant collection. A produced
+dimensionality that disagrees with the configured size is a hard error
+rather than a silent re-config, which previously let 768-dim vectors
+land in a 1024-dim collection.
 """
 
 from __future__ import annotations
@@ -26,8 +30,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL: Final[str] = "text-embedding-004"
-DEFAULT_VECTOR_SIZE: Final[int] = 768
+DEFAULT_MODEL: Final[str] = "gemini-embedding-001"
+DEFAULT_VECTOR_SIZE: Final[int] = 1024
 MAX_RETRY_ATTEMPTS: Final[int] = 4
 
 
@@ -76,10 +80,13 @@ class GeminiEmbedder:
         return self._client
 
     def _embed_once(self, texts: list[str]) -> list[list[float]]:
+        from google.genai import types
+
         try:
             response = self._get_client().models.embed_content(
                 model=self._model_name,
                 contents=list(texts),
+                config=types.EmbedContentConfig(output_dimensionality=self._vector_size),
             )
         except Exception as exc:
             message = str(exc)
@@ -111,12 +118,12 @@ class GeminiEmbedder:
         if vectors:
             produced = len(vectors[0])
             if produced != self._vector_size:
-                logger.warning(
-                    "Gemini produced vector_size=%d but configured %d; updating to match.",
-                    produced,
-                    self._vector_size,
+                raise EmbeddingError(
+                    f"Gemini returned {produced}-dim vectors but {self._vector_size} "
+                    f"was configured (the live collection dimensionality). Set "
+                    f"GEMINI_VECTOR_SIZE to match the collection, or recreate the "
+                    f"collection — never write mismatched vectors."
                 )
-                self._vector_size = produced
         return vectors
 
     def health_check(self) -> bool:

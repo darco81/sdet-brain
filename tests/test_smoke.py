@@ -16,5 +16,5 @@ def test_settings_defaults() -> None:
     assert settings.collection_name == "sdet_brand_v1"
     assert settings.embedding_provider in {"mlx", "gemini"}
     assert settings.mlx_vector_size == 1024
-    assert settings.gemini_vector_size == 768
+    assert settings.gemini_vector_size == 1024
     assert 0.0 < settings.chunk_overlap_ratio < 1.0
