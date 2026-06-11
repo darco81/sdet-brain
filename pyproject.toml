@@ -4,7 +4,7 @@ version = "0.6.1"
 description = "Persistent RAG for a personal Markdown corpus - shared context across Claude clients via MCP."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "Source-Available" }
+license = { file = "LICENSE" }
 authors = [{ name = "Dariusz Kowalski", email = "darecki9k@gmail.com" }]
 keywords = ["rag", "mcp", "qdrant", "embeddings", "fastapi"]
 
