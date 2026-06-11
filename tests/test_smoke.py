@@ -7,7 +7,11 @@ from sdet_brain.config import Settings
 
 
 def test_package_version_exposed() -> None:
-    assert sdet_brain.__version__ == "0.1.0"
+    # Sourced from installed metadata (pyproject), not hardcoded.
+    from importlib.metadata import version
+
+    assert sdet_brain.__version__ == version("sdet-brain")
+    assert sdet_brain.__version__ != "0.0.0.dev0"
 
 
 def test_settings_defaults() -> None:
