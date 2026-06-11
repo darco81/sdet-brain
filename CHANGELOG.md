@@ -28,6 +28,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-11 - CI, MCP modernization, retrieval fixes
+
+### Added
+- CI pipeline (GitHub Actions: ruff + ruff-format + mypy strict + pytest
+  against a Qdrant service container), pre-commit hooks, and Dependabot.
+- MCP: `ToolAnnotations` on all 14 tools (readOnly/destructive/idempotent
+  hints) and a Streamable HTTP entrypoint (`sdet-brain-mcp-http`); the SSE
+  entrypoint is marked legacy.
+- Cross-encoder reranker wired into the MCP `search` tool (`RERANK_ENABLED`).
+- `CLAUDE.md` for MCP-client usage; home-path PII gate
+  (`scripts/check_no_pii.sh`, enforced in CI + pre-commit).
+
+### Fixed
+- Server ingest (MCP `ingest_path` tool + `POST /ingest`) now threads
+  `SourceConfig`, so re-ingested files are classified instead of tagged
+  `unknown`.
+- `min_score` is now applied on the default hybrid search path (was a no-op).
+- Gemini fallback: `gemini-embedding-001` + requested `output_dimensionality`
+  + a hard dimension-mismatch guard (no more silent 768-into-1024 writes).
+- `get_settings()` is cached; the embedder is closed on shutdown.
+- Re-introduced home-path / tracker-ID PII scrubbed from the public repo.
+- Lint + format drift cleared; ruff pinned; `jinja2` declared as a dependency.
+
+### Changed
+- README refreshed to the 0.6.x reality (badges, tool count, status table).
+- `.env.example` corrected (OCR/LLM blocks, current Gemini defaults).
+- `__version__` and the FastAPI app version are sourced from package metadata.
+- `pyproject` license set to `{ file = "LICENSE" }`.
+
 ## [0.6.1] - 2026-05-14 - OCR hardening (same-day patch from gruntowne review)
 
 Same-day post-launch hardening based on a four-agent code review of
