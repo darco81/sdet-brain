@@ -1,9 +1,10 @@
-"""MCP SSE entrypoint - LEGACY transport, kept for old MCP clients.
+"""MCP Streamable HTTP entrypoint - the current transport for remote clients.
 
-HTTP+SSE was deprecated in the 2025-03-26 MCP spec revision in favour of
-Streamable HTTP. Prefer ``sdet-brain-mcp-http`` for new/remote
-deployments and ``sdet-brain-mcp-stdio`` for local clients; this entry
-point exists only for clients that still speak the old SSE transport.
+Streamable HTTP (single ``/mcp`` endpoint) is the MCP transport that
+replaced the deprecated HTTP+SSE transport in the 2025-03-26 spec
+revision. Prefer this over ``sdet-brain-mcp-sse`` for any remote
+deployment; ``sdet-brain-mcp-stdio`` remains the standard for local
+Claude Desktop / Code use.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ def main() -> int:
     state = build_default_state(settings)
     mcp = build_mcp(state_getter=lambda: state)
     mcp.run(
-        transport="sse",
+        transport="http",
         host=settings.server_host,
         port=settings.mcp_sse_port,
     )
