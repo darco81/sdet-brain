@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable
 
 from fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from sdet_brain.server.dependencies import AppState
 from sdet_brain.server.tools.domain import (
@@ -53,6 +54,18 @@ logger = logging.getLogger(__name__)
 
 StateGetter = Callable[[], AppState | None]
 
+# Tool behaviour hints for MCP clients (spec 2025-03-26+). The corpus is a
+# closed world, so openWorldHint=False everywhere. Search/list tools only
+# read; the ingest tools mutate but are non-destructive and idempotent
+# (the content-hash cache skips unchanged files unless force=True).
+_READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
+_INGEST = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+
 
 def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
     """Construct the FastMCP instance and register the four core tools.
@@ -76,12 +89,12 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         ),
     )
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def ping() -> dict[str, str]:
         """Cheap liveness probe confirming the MCP transport works."""
         return {"status": "ok", "service": "sdet-brain"}
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def search(
         query: str,
         limit: int = 5,
@@ -102,7 +115,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
             state, query=query, limit=limit, source_type=source_type, min_score=min_score
         )
 
-    @mcp.tool
+    @mcp.tool(annotations=_INGEST)
     def ingest_path(path: str, force: bool = False) -> str:
         """Re-ingest a file or directory into the brain.
 
@@ -120,7 +133,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return ingest_path_tool(state, path=path, force=force)
 
-    @mcp.tool
+    @mcp.tool(annotations=_INGEST)
     def ingest_image(path: str, force: bool = False) -> str:
         """Ingest an image or PDF (NOT for markdown — use ``ingest_path``).
 
@@ -138,7 +151,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return ingest_image_tool(state, path=path, force=force)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def list_sources(source_type: str | None = None) -> str:
         """List every Markdown file currently indexed in the brain.
 
@@ -149,7 +162,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return list_sources_tool(state, source_type=source_type)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def get_chunk_neighbors(
         source_path: str,
         chunk_index: int,
@@ -170,7 +183,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
             window=window,
         )
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def search_voice_samples(topic: str, limit: int = 5) -> str:
         """Find authentic voice samples for a given topic.
 
@@ -185,7 +198,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return search_voice_samples_tool(state, topic=topic, limit=limit)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def search_smaczki(topic: str, limit: int = 5) -> str:
         """Find vivid sentence-level "smaczki" (zingers) about a topic.
 
@@ -199,7 +212,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return search_smaczki_tool(state, topic=topic, limit=limit)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def search_decisions(
         topic: str,
         since: str | None = None,
@@ -216,7 +229,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return search_decisions_tool(state, topic=topic, since=since, limit=limit)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def list_articles_by_status(status: str, series: str | None = None) -> str:
         """List case-study articles in a given workflow ``status``.
 
@@ -231,7 +244,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return list_articles_by_status_tool(state, status=status, series=series)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def query_rewrite(
         query: str,
         limit: int = 5,
@@ -251,7 +264,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return query_rewrite_tool(state, query=query, limit=limit, source_type=source_type)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def multi_query_search(
         query: str,
         limit: int = 5,
@@ -280,7 +293,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
             source_type=source_type,
         )
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def summarize_results(
         topic: str,
         limit: int = 8,
@@ -298,7 +311,7 @@ def build_mcp(state_getter: StateGetter | None = None) -> FastMCP:
         state = _require_state(state_getter())
         return summarize_results_tool(state, topic=topic, limit=limit, source_type=source_type)
 
-    @mcp.tool
+    @mcp.tool(annotations=_READ_ONLY)
     def search_sprint_reports(
         query: str,
         project: str | None = None,

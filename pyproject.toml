@@ -45,6 +45,7 @@ dev = [
 [project.scripts]
 sdet-brain-server = "sdet_brain.server.__main__:cli"
 sdet-brain-mcp-stdio = "sdet_brain.server.mcp_stdio:main"
+sdet-brain-mcp-http = "sdet_brain.server.mcp_http:main"
 sdet-brain-mcp-sse = "sdet_brain.server.mcp_sse:main"
 sdet-brain-watcher = "sdet_brain.cli.watcher_cli:main"
 sdet-brain-cli = "sdet_brain.cli.main_cli:main"
