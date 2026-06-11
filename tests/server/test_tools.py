@@ -181,7 +181,9 @@ def test_search_reranks_when_enabled(
         ) -> list[RerankResult]:
             ordered = sorted(
                 candidates,
-                key=lambda c: 0 if "beta.md" in (c.payload.payload or {}).get("source_path", "") else 1,
+                key=lambda c: (
+                    0 if "beta.md" in (c.payload.payload or {}).get("source_path", "") else 1
+                ),
             )
             results = [
                 RerankResult(text=c.text, score=float(len(ordered) - i), payload=c.payload)
