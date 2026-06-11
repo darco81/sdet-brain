@@ -4,9 +4,9 @@
 > Desktop, Claude Code, OpenCode, and other MCP clients - so handoff documents
 > between threads stop being a chore.
 
-[![Version](https://img.shields.io/badge/version-0.5.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.1-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org)
-[![Tests](https://img.shields.io/badge/tests-213_passing-success.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-passing-success.svg)](#testing)
 [![License](https://img.shields.io/badge/license-Source--Available-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-production_local-success.svg)](#status)
 
@@ -136,7 +136,7 @@ cd sdet-brain
 uv sync --extra dev
 cp .env.example .env   # fill in any secrets you need
 docker compose -f docker/docker-compose.yml up -d qdrant
-uv run pytest -q       # verify the install (213 passing)
+uv run pytest -q       # verify the install
 ```
 
 ## Embeddings
@@ -270,7 +270,7 @@ Pre-shipped: `voice-check`, `series-status`, `decision-history`,
 `~/.sdet-brain/templates/<name>.yaml` and override the shipped ones
 on name collision.
 
-### MCP tools (12)
+### MCP tools (14)
 
 Available to Claude Desktop / Claude Code / OpenCode / any MCP-aware
 client over stdio, SSE, or streamable HTTP.
@@ -531,8 +531,8 @@ Each tier was scoped, tracked, and closed with the same discipline:
   smoke results documented as comments before close.
 - **Atomic conventional commits** - one feature per commit, no mixed
   concerns.
-- **Quality gates re-run before every commit**: `pytest` (213 tests by
-  v0.5.0), `mypy --strict` (70 source files), `ruff` clean.
+- **Quality gates re-run before every commit**: `pytest`, `mypy --strict`,
+  `ruff` clean — now enforced in CI on every push/PR.
 - **Sprint report per tier** in [`docs/sprints/`](docs/sprints/) with
   goals vs delivered, lessons learned, and a morning checklist for
   the next session.
@@ -548,8 +548,8 @@ report to see the loop end-to-end.
 
 ## Status
 
-**v0.5.1 - Source-available reference release.** Six sprints shipped between
-2026-04-30 and 2026-05-01.
+**v0.6.1 - Source-available reference release.** Shipped across six tiers
+plus post-tier OCR and hardening waves.
 
 | Tier | Tag | Highlights |
 | --- | --- | --- |
@@ -559,8 +559,10 @@ report to see the loop end-to-end.
 | 3 | `v0.3.0` | Local MLX LLM (Qwen3-Next-80B) + conversational `/chat` + SSE streaming |
 | 4 | `v0.4.0` | Tier 4 ALL IN - Qwen3-Embedding-8B + tiered LLM router + multi-query agentic retrieval |
 | 5 | `v0.5.0` | DX - REPL CLI + inline citations + saved templates |
+| 6 | `v0.6.0`-`v0.6.1` | Image / PDF ingestion via DeepSeek-OCR + `search` CLI + hardening |
 
-**213 tests passing.** mypy --strict + ruff clean across 70 source files.
+**Full suite passing** under mypy --strict + ruff. See the CHANGELOG for
+per-version test counts.
 
 See [`docs/sprints/`](docs/sprints/) for per-tier sprint reports and
 [`CHANGELOG.md`](CHANGELOG.md) for the per-version changelog.
@@ -571,10 +573,9 @@ See [`docs/sprints/`](docs/sprints/) for per-tier sprint reports and
 - SQLite conversation persistence + FTS5
 - Reranker upgrade (Qwen3-Reranker MLX)
 - GraphRAG-lite (entity + relation extraction)
-- PDF ingestion (DeepSeek-OCR-2)
-- Image ingestion (qwen3-vl)
 
-Each backlog item has explicit reopen criteria in Linear.
+Shipped since the original backlog: image / PDF ingestion via DeepSeek-OCR
+(`v0.6.0`).
 
 ## Development workflow
 
