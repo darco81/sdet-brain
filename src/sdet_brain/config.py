@@ -68,12 +68,16 @@ class Settings(BaseSettings):
         description="Google Gemini API key (used for fallback embeddings).",
     )
     gemini_embedding_model: str = Field(
-        default="text-embedding-004",
-        description="Gemini embedding model id.",
+        default="gemini-embedding-001",
+        description="Gemini embedding model id (text-embedding-004 is deprecated).",
     )
     gemini_vector_size: int = Field(
-        default=768,
-        description="Output dimensionality for the Gemini embedding model.",
+        default=1024,
+        description=(
+            "Output dimensionality requested from Gemini (via "
+            "output_dimensionality). Defaults to 1024 to match the MLX "
+            "collection so the cloud fallback stays compatible."
+        ),
     )
 
     # --- Server ---
